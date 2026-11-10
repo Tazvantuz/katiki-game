@@ -19,19 +19,17 @@ export default class MainScene extends Phaser.Scene {
         this.userData = { fluffies: 100, inventory: ["🍎", "🍣"] };
         this.obstacles = [];
         
-        // Карта 20x20 тайлов
         this.mapSize = 20;
         this.tileWidth = 64;
         this.tileHeight = 32;
         this.mapCenterX = 512;
         this.mapCenterY = 384;
 
-        // Жесткие рамки для камеры и персонажа
         this.bounds = { x: -128, y: 64, w: 1280, h: 640 };
 
         this.locations = {
-            'square': { name: 'Центральная площадь', desc: 'Сердце города', color: 0x90EE90, arrowTo: [{ id: 'forest', x: 512, y: 650 }] },
-            'forest': { name: 'Изумрудный лес', desc: 'Тихое место', color: 0x2E8B57, arrowTo: [{ id: 'square', x: 512, y: 200 }, { id: 'beach', x: 850, y: 400 }] },
+            'square': { name: 'Центральная площадь', desc: 'Сердце города', color: 0x90EE90, arrowTo: [{ id: 'forest', x: 512, y: 680 }] },
+            'forest': { name: 'Изумрудный лес', desc: 'Тихое место', color: 0x2E8B57, arrowTo: [{ id: 'square', x: 512, y: 150 }, { id: 'beach', x: 850, y: 400 }] },
             'beach': { name: 'Солнечный пляж', desc: 'Море и песок', color: 0xF4A460, arrowTo: [{ id: 'forest', x: 200, y: 400 }] }
         };
     }
@@ -140,32 +138,68 @@ export default class MainScene extends Phaser.Scene {
         };
         ['down', 'up', 'left', 'right'].forEach(d => drawKatik('katik_' + d, d));
 
-        // --- 2. ДОМ (Идеальная изометрия) ---
+        // --- 2. ТАЙЛЫ ---
+        // Брусчатка (Площадь)
+        const pathCanvas = this.textures.createCanvas('tile_stone', TW, TH);
+        const pCtx = pathCanvas.context;
+        pCtx.fillStyle = '#A0A0A0';
+        pCtx.beginPath(); pCtx.moveTo(TW/2, 0); pCtx.lineTo(TW, TH/2); pCtx.lineTo(TW/2, TH); pCtx.lineTo(0, TH/2); pCtx.fill();
+        pCtx.strokeStyle = '#808080'; pCtx.lineWidth = 2; pCtx.stroke();
+        // Бордюр
+        pCtx.strokeStyle = '#D3D3D3'; pCtx.lineWidth = 3;
+        pCtx.beginPath(); pCtx.moveTo(TW/2, 2); pCtx.lineTo(TW-2, TH/2); pCtx.lineTo(TW/2, TH-2); pCtx.lineTo(2, TH/2); pCtx.stroke();
+        pathCanvas.refresh();
+
+        // Земляная тропа (Лес)
+        const dirtCanvas = this.textures.createCanvas('tile_dirt', TW, TH);
+        const dCtx = dirtCanvas.context;
+        dCtx.fillStyle = '#8B5A2B';
+        dCtx.beginPath(); dCtx.moveTo(TW/2, 0); dCtx.lineTo(TW, TH/2); dCtx.lineTo(TW/2, TH); dCtx.lineTo(0, TH/2); dCtx.fill();
+        dCtx.strokeStyle = '#5C3A21'; dCtx.lineWidth = 1; dCtx.stroke();
+        dirtCanvas.refresh();
+
+        // Вода (Пляж)
+        const waterCanvas = this.textures.createCanvas('tile_water', TW, TH);
+        const wCtx = waterCanvas.context;
+        wCtx.fillStyle = '#4682B4';
+        wCtx.beginPath(); wCtx.moveTo(TW/2, 0); wCtx.lineTo(TW, TH/2); wCtx.lineTo(TW/2, TH); wCtx.lineTo(0, TH/2); wCtx.fill();
+        // Волны
+        wCtx.strokeStyle = '#87CEFA'; wCtx.lineWidth = 2;
+        wCtx.beginPath(); wCtx.moveTo(TW/4, TH/4); wCtx.lineTo(TW/2, TH/2); wCtx.stroke();
+        wCtx.beginPath(); wCtx.moveTo(TW*3/4, TH*3/4); wCtx.lineTo(TW/2, TH/2); wCtx.stroke();
+        waterCanvas.refresh();
+
+        // --- 3. ДОМ (Идеальная изометрия) ---
         const hCanvas = this.textures.createCanvas('house', 180, 200);
         const hCtx = hCanvas.context;
         hCtx.translate(90, 100);
         const w = 50, h = 25, wallH = 60, roofH = 40;
         
-        hCtx.fillStyle = 'rgba(0,0,0,0.25)'; hCtx.beginPath(); hCtx.ellipse(0, h + wallH, w + 10, h + 10, 0, 0, Math.PI*2); hCtx.fill();
+        hCtx.fillStyle = 'rgba(0,0,0,0.3)'; hCtx.beginPath(); hCtx.ellipse(0, h + wallH, w + 15, h + 15, 0, 0, Math.PI*2); hCtx.fill();
+        // Стены
         hCtx.fillStyle = '#FDF5E6'; hCtx.beginPath(); hCtx.moveTo(-w, 0); hCtx.lineTo(0, h); hCtx.lineTo(0, h + wallH); hCtx.lineTo(-w, wallH); hCtx.fill();
         hCtx.fillStyle = '#DEB887'; hCtx.beginPath(); hCtx.moveTo(0, h); hCtx.lineTo(w, 0); hCtx.lineTo(w, wallH); hCtx.lineTo(0, h + wallH); hCtx.fill();
+        // Крыша
         hCtx.fillStyle = '#8B0000'; hCtx.beginPath(); hCtx.moveTo(0, -roofH); hCtx.lineTo(w + 10, 0); hCtx.lineTo(0, h); hCtx.fill();
         hCtx.fillStyle = '#B22222'; hCtx.beginPath(); hCtx.moveTo(0, -roofH); hCtx.lineTo(-w - 10, 0); hCtx.lineTo(0, h); hCtx.fill();
-        
-        hCtx.strokeStyle = 'rgba(0,0,0,0.1)'; hCtx.lineWidth = 2;
-        for(let i=1; i<6; i++) {
-            hCtx.beginPath(); hCtx.moveTo(-w/6 * i, -roofH + (roofH/6)*i); hCtx.lineTo(-w + (w/6)*i, (h/6)*i); hCtx.stroke();
-            hCtx.beginPath(); hCtx.moveTo(w/6 * i, -roofH + (roofH/6)*i); hCtx.lineTo(w - (w/6)*i, (h/6)*i); hCtx.stroke();
+        // Черепица
+        hCtx.strokeStyle = 'rgba(0,0,0,0.15)'; hCtx.lineWidth = 2;
+        for(let i=1; i<7; i++) {
+            hCtx.beginPath(); hCtx.moveTo(-w/7 * i, -roofH + (roofH/7)*i); hCtx.lineTo(-w + (w/7)*i, (h/7)*i); hCtx.stroke();
+            hCtx.beginPath(); hCtx.moveTo(w/7 * i, -roofH + (roofH/7)*i); hCtx.lineTo(w - (w/7)*i, (h/7)*i); hCtx.stroke();
         }
+        // Труба
         hCtx.fillStyle = '#696969'; hCtx.beginPath(); hCtx.moveTo(w/2 - 5, -roofH/2 - 10); hCtx.lineTo(w/2 + 5, -roofH/2 - 5); hCtx.lineTo(w/2 + 5, -roofH/2 + 15); hCtx.lineTo(w/2 - 5, -roofH/2 + 10); hCtx.fill();
+        // Дверь
         hCtx.fillStyle = '#5C4033'; hCtx.beginPath(); hCtx.moveTo(w/2 - 10, wallH/2 - 10); hCtx.lineTo(w - 5, wallH/2 - 15); hCtx.lineTo(w - 5, wallH - 15); hCtx.lineTo(w/2 - 10, wallH - 10); hCtx.fill();
+        // Окно
         hCtx.fillStyle = '#87CEEB'; hCtx.beginPath(); hCtx.moveTo(-w + 10, wallH/2 - 5); hCtx.lineTo(-w/2 + 5, wallH/2 - 15); hCtx.lineTo(-w/2 + 5, wallH/2 + 5); hCtx.lineTo(-w + 10, wallH/2 + 15); hCtx.fill();
         hCanvas.refresh();
 
-        // --- 3. ДЕРЕВЬЯ И КУСТЫ ---
+        // --- 4. ДЕРЕВЬЯ И ПРИРОДА ---
         const tCanvas = this.textures.createCanvas('tree', 120, 160);
         const tCtx = tCanvas.context;
-        tCtx.fillStyle = 'rgba(0,0,0,0.25)'; tCtx.beginPath(); tCtx.ellipse(60, 140, 40, 15, 0, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = 'rgba(0,0,0,0.3)'; tCtx.beginPath(); tCtx.ellipse(60, 140, 40, 15, 0, 0, Math.PI*2); tCtx.fill();
         tCtx.fillStyle = '#5C4033'; tCtx.fillRect(50, 90, 20, 50);
         tCtx.fillStyle = '#228B22'; tCtx.beginPath(); tCtx.arc(60, 80, 45, 0, Math.PI*2); tCtx.fill();
         tCtx.fillStyle = '#2E8B57'; tCtx.beginPath(); tCtx.arc(45, 60, 35, 0, Math.PI*2); tCtx.fill(); tCtx.beginPath(); tCtx.arc(75, 60, 35, 0, Math.PI*2); tCtx.fill();
@@ -173,70 +207,60 @@ export default class MainScene extends Phaser.Scene {
         tCtx.fillStyle = '#90EE90'; tCtx.beginPath(); tCtx.arc(50, 40, 15, 0, Math.PI*2); tCtx.fill();
         tCanvas.refresh();
 
-        const bCanvas = this.textures.createCanvas('bush', 64, 48);
-        const bCtx = bCanvas.context;
-        bCtx.fillStyle = 'rgba(0,0,0,0.2)'; bCtx.beginPath(); bCtx.ellipse(32, 40, 20, 8, 0, 0, Math.PI*2); bCtx.fill();
-        bCtx.fillStyle = '#2E8B57'; bCtx.beginPath(); bCtx.arc(20, 30, 15, 0, Math.PI*2); bCtx.fill();
-        bCtx.beginPath(); bCtx.arc(44, 30, 15, 0, Math.PI*2); bCtx.fill();
-        bCtx.fillStyle = '#3CB371'; bCtx.beginPath(); bCtx.arc(32, 20, 18, 0, Math.PI*2); bCtx.fill();
-        bCanvas.refresh();
+        // Пальма
+        const pCanvas = this.textures.createCanvas('palm', 120, 160);
+        const pCtx = pCanvas.context;
+        pCtx.fillStyle = 'rgba(0,0,0,0.3)'; pCtx.beginPath(); pCtx.ellipse(60, 140, 30, 10, 0, 0, Math.PI*2); pCtx.fill();
+        pCtx.strokeStyle = '#8B4513'; pCtx.lineWidth = 8; pCtx.beginPath(); pCtx.moveTo(60, 140); pCtx.quadraticCurveTo(40, 80, 60, 40); pCtx.stroke();
+        pCtx.fillStyle = '#228B22';
+        pCtx.beginPath(); pCtx.ellipse(60, 30, 50, 20, Math.PI/4, 0, Math.PI*2); pCtx.fill();
+        pCtx.beginPath(); pCtx.ellipse(60, 30, 50, 20, -Math.PI/4, 0, Math.PI*2); pCtx.fill();
+        pCtx.beginPath(); pCtx.ellipse(60, 30, 50, 20, 0, 0, Math.PI*2); pCtx.fill();
+        pCanvas.refresh();
 
-        // --- 4. ДЕКОР ---
-        const lCanvas = this.textures.createCanvas('lamp', 40, 100);
-        const lCtx = lCanvas.context;
-        lCtx.fillStyle = 'rgba(0,0,0,0.2)'; lCtx.beginPath(); lCtx.ellipse(20, 90, 15, 8, 0, 0, Math.PI*2); lCtx.fill();
+        // --- 5. ДЕКОР ---
+        const fCanvas = this.textures.createCanvas('flower', 48, 48);
+        const fCtx = fCanvas.context;
+        fCtx.fillStyle = 'rgba(0,0,0,0.2)'; fCtx.beginPath(); fCtx.ellipse(24, 40, 15, 5, 0, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#228B22'; fCtx.beginPath(); fCtx.arc(24, 30, 15, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#FF69B4'; fCtx.beginPath(); fCtx.arc(20, 25, 5, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#FFD700'; fCtx.beginPath(); fCtx.arc(28, 28, 5, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#FF4500'; fCtx.beginPath(); fCtx.arc(24, 20, 5, 0, Math.PI*2); fCtx.fill();
+        fCanvas.refresh();
+
+        const fountCanvas = this.textures.createCanvas('fountain', 160, 140);
+        const foCtx = fountCanvas.context;
+        foCtx.fillStyle = 'rgba(0,0,0,0.3)'; foCtx.beginPath(); foCtx.ellipse(80, 110, 80, 35, 0, 0, Math.PI*2); foCtx.fill();
+        foCtx.fillStyle = '#D3D3D3'; foCtx.beginPath(); foCtx.ellipse(80, 90, 70, 35, 0, 0, Math.PI*2); foCtx.fill();
+        foCtx.fillStyle = '#4682B4'; foCtx.beginPath(); foCtx.ellipse(80, 90, 55, 25, 0, 0, Math.PI*2); foCtx.fill();
+        foCtx.fillStyle = '#A9A9A9'; foCtx.fillRect(70, 40, 20, 50);
+        foCtx.beginPath(); foCtx.ellipse(80, 40, 30, 15, 0, 0, Math.PI*2); foCtx.fill();
+        foCtx.fillStyle = '#87CEFA'; foCtx.beginPath(); foCtx.ellipse(80, 35, 25, 10, 0, 0, Math.PI*2); foCtx.fill();
+        fountCanvas.refresh();
+
+        const lampCanvas = this.textures.createCanvas('lamp', 40, 100);
+        const lCtx = lampCanvas.context;
+        lCtx.fillStyle = 'rgba(0,0,0,0.3)'; lCtx.beginPath(); lCtx.ellipse(20, 90, 15, 8, 0, 0, Math.PI*2); lCtx.fill();
         lCtx.fillStyle = '#333'; lCtx.fillRect(18, 30, 4, 60);
         lCtx.fillStyle = '#FFD700'; lCtx.beginPath(); lCtx.arc(20, 30, 10, 0, Math.PI*2); lCtx.fill();
         lCtx.fillStyle = '#FFF'; lCtx.beginPath(); lCtx.arc(18, 28, 4, 0, Math.PI*2); lCtx.fill();
-        lCanvas.refresh();
+        lampCanvas.refresh();
 
         const benchCanvas = this.textures.createCanvas('bench', 80, 60);
         const bnCtx = benchCanvas.context;
-        bnCtx.fillStyle = 'rgba(0,0,0,0.2)'; bnCtx.beginPath(); bnCtx.ellipse(40, 50, 30, 10, 0, 0, Math.PI*2); bnCtx.fill();
+        bnCtx.fillStyle = 'rgba(0,0,0,0.3)'; bnCtx.beginPath(); bnCtx.ellipse(40, 50, 30, 10, 0, 0, Math.PI*2); bnCtx.fill();
         bnCtx.fillStyle = '#8B4513'; bnCtx.fillRect(15, 40, 5, 15); bnCtx.fillRect(60, 40, 5, 15);
         bnCtx.fillStyle = '#A0522D'; bnCtx.beginPath(); bnCtx.moveTo(10, 35); bnCtx.lineTo(70, 35); bnCtx.lineTo(70, 42); bnCtx.lineTo(10, 42); bnCtx.fill();
         bnCtx.beginPath(); bnCtx.moveTo(10, 25); bnCtx.lineTo(70, 25); bnCtx.lineTo(70, 30); bnCtx.lineTo(10, 30); bnCtx.fill();
         benchCanvas.refresh();
 
-        const rockCanvas = this.textures.createCanvas('rock', 64, 48);
-        const rCtx = rockCanvas.context;
-        rCtx.fillStyle = 'rgba(0,0,0,0.2)'; rCtx.beginPath(); rCtx.ellipse(32, 40, 20, 8, 0, 0, Math.PI*2); rCtx.fill();
-        rCtx.fillStyle = '#808080'; rCtx.beginPath(); rCtx.ellipse(32, 30, 20, 15, 0, 0, Math.PI*2); rCtx.fill();
-        rCtx.fillStyle = '#A9A9A9'; rCtx.beginPath(); rCtx.ellipse(28, 25, 12, 8, 0, 0, Math.PI*2); rCtx.fill();
-        rockCanvas.refresh();
-
-        // --- 5. ТАЙЛЫ ---
-        const pathCanvas = this.textures.createCanvas('path_tile', TW, TH);
-        const pCtx = pathCanvas.context;
-        pCtx.fillStyle = 'rgba(200, 180, 140, 0.9)';
-        pCtx.beginPath(); pCtx.moveTo(TW/2, 0); pCtx.lineTo(TW, TH/2); pCtx.lineTo(TW/2, TH); pCtx.lineTo(0, TH/2); pCtx.fill();
-        pCtx.strokeStyle = 'rgba(0,0,0,0.1)'; pCtx.lineWidth = 1; pCtx.stroke();
-        pathCanvas.refresh();
-
-        const waterCanvas = this.textures.createCanvas('water_tile', TW, TH);
-        const wCtx = waterCanvas.context;
-        wCtx.fillStyle = 'rgba(64, 164, 223, 0.8)';
-        wCtx.beginPath(); wCtx.moveTo(TW/2, 0); wCtx.lineTo(TW, TH/2); wCtx.lineTo(TW/2, TH); wCtx.lineTo(0, TH/2); wCtx.fill();
-        waterCanvas.refresh();
-
-        const fountCanvas = this.textures.createCanvas('fountain', 160, 140);
-        const fCtx = fountCanvas.context;
-        fCtx.fillStyle = 'rgba(0,0,0,0.25)'; fCtx.beginPath(); fCtx.ellipse(80, 110, 70, 30, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#D3D3D3'; fCtx.beginPath(); fCtx.ellipse(80, 90, 70, 35, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#4682B4'; fCtx.beginPath(); fCtx.ellipse(80, 90, 55, 25, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#A9A9A9'; fCtx.fillRect(70, 40, 20, 50);
-        fCtx.beginPath(); fCtx.ellipse(80, 40, 30, 15, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#87CEFA'; fCtx.beginPath(); fCtx.ellipse(80, 35, 25, 10, 0, 0, Math.PI*2); fCtx.fill();
-        fountCanvas.refresh();
-
-        const size = 64;
-        const arrowCanvas = this.textures.createCanvas('arrow_tile', size, size);
+        const arrowCanvas = this.textures.createCanvas('arrow_tile', 64, 64);
         const aCtx = arrowCanvas.context;
-        aCtx.fillStyle = 'rgba(0, 255, 0, 0.4)'; aCtx.beginPath(); aCtx.ellipse(size/2, size/2, 28, 14, 0, 0, Math.PI * 2); aCtx.fill();
+        aCtx.fillStyle = 'rgba(0, 255, 0, 0.4)'; aCtx.beginPath(); aCtx.ellipse(32, 32, 28, 14, 0, 0, Math.PI * 2); aCtx.fill();
         aCtx.fillStyle = '#00FF00'; aCtx.beginPath();
-        aCtx.moveTo(size/2, size/2 + 15); aCtx.lineTo(size/2 - 15, size/2); aCtx.lineTo(size/2 - 5, size/2);
-        aCtx.lineTo(size/2 - 5, size/2 - 15); aCtx.lineTo(size/2 + 5, size/2 - 15); aCtx.lineTo(size/2 + 5, size/2);
-        aCtx.lineTo(size/2 + 15, size/2); aCtx.closePath(); aCtx.fill();
+        aCtx.moveTo(32, 47); aCtx.lineTo(17, 32); aCtx.lineTo(27, 32);
+        aCtx.lineTo(27, 17); aCtx.lineTo(37, 17); aCtx.lineTo(37, 32);
+        aCtx.lineTo(47, 32); aCtx.closePath(); aCtx.fill();
         arrowCanvas.refresh();
         
         const partCanvas = this.textures.createCanvas('water_drop', 8, 8);
@@ -258,11 +282,10 @@ export default class MainScene extends Phaser.Scene {
         const locData = this.locations[this.currentLocation];
         const TW = this.tileWidth, TH = this.tileHeight;
         
-        // Камера жестко зафиксирована в рамках карты
         this.cameras.main.setBounds(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
         this.cameras.main.setZoom(1.3);
 
-        // Отрисовка пола
+        // Отрисовка базового пола
         this.worldGraphics.lineStyle(1, 0x000000, 0.1);
         for (let row = 0; row < this.mapSize; row++) {
             for (let col = 0; col < this.mapSize; col++) {
@@ -283,7 +306,7 @@ export default class MainScene extends Phaser.Scene {
             }
         }
 
-        // ФИКСИРОВАННЫЕ ЛОКАЦИИ (Одинаковые для всех игроков)
+        // Специфичная отрисовка для каждой локации
         if (this.currentLocation === 'square') {
             this.buildSquare();
         } else if (this.currentLocation === 'forest') {
@@ -292,7 +315,6 @@ export default class MainScene extends Phaser.Scene {
             this.buildBeach();
         }
 
-        // Стрелки
         locData.arrowTo.forEach(arrow => {
             const arrowSprite = this.add.sprite(arrow.x, arrow.y, 'arrow_tile');
             arrowSprite.setDepth(arrow.y);
@@ -308,17 +330,20 @@ export default class MainScene extends Phaser.Scene {
         if (this.myPlayer) this.cameras.main.startFollow(this.myPlayer, true, 0.1, 0.1);
     }
 
+    drawTile(key, col, row) {
+        const x = this.mapCenterX + (col - row) * (this.tileWidth / 2);
+        const y = this.mapCenterY + (col + row - this.mapSize) * (this.tileHeight / 2);
+        this.add.image(x, y, key).setDepth(-100);
+    }
+
     // --- УНИКАЛЬНЫЕ ЛОКАЦИИ ---
     buildSquare() {
-        // Дорожки
-        for(let i=4; i<16; i++) {
-            let x1 = this.mapCenterX + (i - 10) * 32;
-            let y1 = this.mapCenterY + (i + 10 - 20) * 16;
-            this.add.image(x1, y1, 'path_tile').setDepth(-100);
-            
-            let x2 = this.mapCenterX + (10 - i) * 32;
-            let y2 = this.mapCenterY + (10 + i - 20) * 16;
-            this.add.image(x2, y2, 'path_tile').setDepth(-100);
+        // Дороги (крест) с бордюрами
+        for(let i=0; i<this.mapSize; i++) {
+            this.drawTile('tile_stone', 9, i); // Вертикальная
+            this.drawTile('tile_stone', 10, i);
+            this.drawTile('tile_stone', i, 9); // Горизонтальная
+            this.drawTile('tile_stone', i, 10);
         }
 
         this.spawnObject('fountain', 512, 384, 50);
@@ -327,72 +352,69 @@ export default class MainScene extends Phaser.Scene {
         });
         this.emitters.push(emitter);
 
-        // Жестко заданные координаты
-        const houses = [{x: 300, y: 250}, {x: 700, y: 250}, {x: 300, y: 550}, {x: 700, y: 550}];
-        houses.forEach(h => this.spawnObject('house', h.x, h.y, 60));
+        // Клумбы
+        this.spawnObject('flower', 430, 300, 15);
+        this.spawnObject('flower', 594, 300, 15);
+        this.spawnObject('flower', 430, 468, 15);
+        this.spawnObject('flower', 594, 468, 15);
 
-        const lamps = [{x: 400, y: 300}, {x: 600, y: 300}, {x: 400, y: 480}, {x: 600, y: 480}];
-        lamps.forEach(l => this.spawnObject('lamp', l.x, l.y, 15));
+        // Дома
+        this.spawnObject('house', 300, 250, 60);
+        this.spawnObject('house', 724, 250, 60);
+        this.spawnObject('house', 300, 518, 60);
+        this.spawnObject('house', 724, 518, 60);
 
-        const benches = [{x: 350, y: 400}, {x: 650, y: 400}];
-        benches.forEach(b => this.spawnObject('bench', b.x, b.y, 25));
+        // Фонари и лавки
+        this.spawnObject('lamp', 480, 250, 15);
+        this.spawnObject('lamp', 544, 250, 15);
+        this.spawnObject('lamp', 480, 518, 15);
+        this.spawnObject('lamp', 544, 518, 15);
+        this.spawnObject('bench', 350, 384, 25);
+        this.spawnObject('bench', 674, 384, 25);
     }
 
     buildForest() {
-        // Тропинка
-        for(let i=5; i<15; i++) {
-            let x = this.mapCenterX + (i - 10) * 32;
-            let y = this.mapCenterY + (i + 10 - 20) * 16;
-            this.add.image(x, y, 'path_tile').setDepth(-100).setTint(0x8B4513);
-        }
+        // Извилистая тропа
+        let pathCoords = [[9,0], [9,1], [9,2], [8,3], [8,4], [7,5], [7,6], [8,7], [8,8], [9,9], [9,10], [10,11], [10,12], [9,13], [9,14], [9,15], [9,16], [9,17], [9,18], [9,19]];
+        pathCoords.forEach(p => this.drawTile('tile_dirt', p[0], p[1]));
 
-        // Детерминированный генератор (все игроки видят одинаковый лес)
-        let seed = 12345;
+        // Деревья
+        let seed = 777;
         const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
-
-        for(let i=0; i<40; i++) {
-            let tx = 100 + rand() * 800;
-            let ty = 100 + rand() * 500;
-            // Ограничение спавна вокруг тропинки
-            if (Phaser.Math.Distance.Between(tx, ty, 512, 450) > 120 && Phaser.Math.Distance.Between(tx, ty, 512, 600) > 120) {
+        for(let i=0; i<45; i++) {
+            let tx = 150 + rand() * 700;
+            let ty = 150 + rand() * 500;
+            // Ограничение вокруг тропы
+            if (Phaser.Math.Distance.Between(tx, ty, 512, 450) > 100) {
                 this.spawnObject('tree', tx, ty, 30);
             }
         }
-        
-        for(let i=0; i<10; i++) {
-            let bx = 100 + rand() * 800;
-            let by = 100 + rand() * 500;
-            this.spawnObject('bush', bx, by, 15);
-        }
-        for(let i=0; i<5; i++) {
-            let rx = 100 + rand() * 800;
-            let ry = 100 + rand() * 500;
-            this.spawnObject('rock', rx, ry, 15);
-        }
+
+        // Мелкий декор
+        this.spawnObject('flower', 450, 350, 15);
+        this.spawnObject('flower', 600, 600, 15);
+        this.spawnObject('lamp', 400, 200, 15);
+        this.spawnObject('bench', 650, 300, 25);
     }
 
     buildBeach() {
-        // Вода (верхние 8 рядов)
-        for(let row = 0; row < 8; row++) {
-            for(let col = 0; col < 20; col++) {
-                const x = this.mapCenterX + (col - row) * 32;
-                const y = this.mapCenterY + (col + row - 20) * 16;
-                this.add.image(x, y, 'water_tile').setDepth(-100);
+        // Море (половина карты)
+        for(let row = 0; row < this.mapSize; row++) {
+            for(let col = 10; col < this.mapSize; col++) {
+                this.drawTile('tile_water', col, row);
             }
         }
 
-        const trees = [{x: 200, y: 500}, {x: 300, y: 700}, {x: 600, y: 650}];
-        trees.forEach(t => this.spawnObject('tree', t.x, t.y, 30));
-        
-        const benches = [{x: 450, y: 500}];
-        benches.forEach(b => this.spawnObject('bench', b.x, b.y, 25));
+        // Пальмы
+        this.spawnObject('palm', 250, 250, 30);
+        this.spawnObject('palm', 350, 500, 30);
+        this.spawnObject('palm', 600, 600, 30);
 
-        const rocks = [{x: 700, y: 600}, {x: 800, y: 500}];
-        rocks.forEach(r => this.spawnObject('rock', r.x, r.y, 15));
-        
-        // Зонтики (лампы перекрашенные)
-        const umbrellas = [{x: 350, y: 550}, {x: 650, y: 500}];
-        umbrellas.forEach(u => this.spawnObject('lamp', u.x, u.y, 15).setTint(0xFF0000));
+        // Пляжный декор
+        this.spawnObject('bench', 450, 300, 25);
+        this.spawnObject('flower', 300, 400, 15);
+        this.spawnObject('lamp', 700, 250, 15).setTint(0xFF0000); // Зонтик
+        this.spawnObject('lamp', 500, 550, 15).setTint(0xFF0000); // Зонтик
     }
 
     spawnObject(key, x, y, radius) {
@@ -411,14 +433,12 @@ export default class MainScene extends Phaser.Scene {
                 let targetX = pointer.worldX;
                 let targetY = pointer.worldY;
                 
-                // Перевод в изометрические координаты
                 let isoX = targetX - this.mapCenterX;
                 let isoY = targetY - this.mapCenterY + (this.mapSize * this.tileHeight/2);
                 
                 let col = (isoX / (this.tileWidth/2) + isoY / (this.tileHeight/2)) / 2;
                 let row = (isoY / (this.tileHeight/2) - isoX / (this.tileWidth/2)) / 2;
                 
-                // Жестко зажимаем клик в рамках карты
                 col = Phaser.Math.Clamp(col, 0, this.mapSize - 1);
                 row = Phaser.Math.Clamp(row, 0, this.mapSize - 1);
                 
@@ -565,7 +585,6 @@ export default class MainScene extends Phaser.Scene {
                 let nextX = this.myPlayer.x + Math.cos(moveAngle) * this.speed;
                 let nextY = this.myPlayer.y + Math.sin(moveAngle) * this.speed;
                 
-                // Защита от застревания
                 let alreadyStuck = false;
                 for (let obs of this.obstacles) {
                     if (Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y, obs.x, obs.y) < obs.r) {
@@ -583,7 +602,6 @@ export default class MainScene extends Phaser.Scene {
                 }
                 
                 if (canMove) {
-                    // Жесткое ограничение координат (Clamp), чтобы не выйти за карту
                     this.myPlayer.x = Phaser.Math.Clamp(nextX, this.bounds.x + 20, this.bounds.x + this.bounds.w - 20);
                     this.myPlayer.y = Phaser.Math.Clamp(nextY, this.bounds.y + 20, this.bounds.y + this.bounds.h - 20);
                     

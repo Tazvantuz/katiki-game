@@ -25,9 +25,8 @@ export default class MainScene extends Phaser.Scene {
         const tileHeight = 32;
         
         graphics.lineStyle(1, 0x000000, 0.2);
-        graphics.fillStyle(0x90EE90, 1); // Салатовый цвет травы
+        graphics.fillStyle(0x90EE90, 1);
 
-        // Рисуем сетку 20x20
         for (let row = 0; row < 20; row++) {
             for (let col = 0; col < 20; col++) {
                 const x = 512 + (col - row) * (tileWidth / 2);
@@ -54,7 +53,8 @@ export default class MainScene extends Phaser.Scene {
     }
 
     connectToServer() {
-        this.ws = new WebSocket('ws://127.0.0.1:8787/ws');
+        // Боевой адрес сервера с твоим новым субдоменом
+        this.ws = new WebSocket('wss://katiki-game.katiland.workers.dev/ws');
 
         this.ws.onopen = () => {
             console.log('Подключено к серверу!');
@@ -64,12 +64,11 @@ export default class MainScene extends Phaser.Scene {
             const data = JSON.parse(event.data);
 
             if (data.type === 'init') {
-                // Получили свой ID и список других игроков
                 this.myId = data.id;
-                this.createPlayer(this.myId, 512, 384, 0x0000FF, 'Вы'); // Синий кружок
+                this.createPlayer(this.myId, 512, 384, 0x0000FF, 'Вы');
 
                 data.players.forEach(p => {
-                    this.createPlayer(p.id, p.x, p.y, 0xFF0000, 'Игрок'); // Красные кружки
+                    this.createPlayer(p.id, p.x, p.y, 0xFF0000, 'Игрок');
                 });
             } 
             else if (data.type === 'player_joined') {
@@ -78,7 +77,6 @@ export default class MainScene extends Phaser.Scene {
             else if (data.type === 'player_moved') {
                 const p = this.otherPlayers[data.id];
                 if (p) {
-                    // Плавное движение других игроков
                     this.tweens.add({
                         targets: p,
                         x: data.x,
@@ -99,17 +97,11 @@ export default class MainScene extends Phaser.Scene {
 
     createPlayer(id, x, y, color, name) {
         const container = this.add.container(x, y);
-        
-        // Рисуем тело персонажа (пока просто круг)
         const body = this.add.circle(0, 0, 15, color);
         body.setStrokeStyle(2, 0x000000);
-        
-        // Имя над головой
         const text = this.add.text(0, -30, name, { fontSize: '14px', fill: '#fff', backgroundColor: '#00000088', padding: {x:4, y:2} }).setOrigin(0.5);
 
         container.add([body, text]);
-        
-        // Сортировка по Y, чтобы персонажи перекрывали друг друга правильно
         container.setDepth(y);
 
         if (id === this.myId) {
@@ -125,19 +117,16 @@ export default class MainScene extends Phaser.Scene {
         let dx = 0;
         let dy = 0;
 
-        // Управление (WASD или стрелки)
         if (this.cursors.left.isDown || this.keys.A.isDown) dx -= 1;
         if (this.cursors.right.isDown || this.keys.D.isDown) dx += 1;
         if (this.cursors.up.isDown || this.keys.W.isDown) dy -= 1;
         if (this.cursors.down.isDown || this.keys.S.isDown) dy += 1;
 
         if (dx !== 0 || dy !== 0) {
-            // Двигаем локального персонажа
             this.myPlayer.x += dx * this.speed;
             this.myPlayer.y += dy * this.speed;
             this.myPlayer.setDepth(this.myPlayer.y);
 
-            // Отправляем позицию на сервер (не чаще 20 раз в секунду, чтобы не спамить)
             if (time - this.lastSendTime > 50) {
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(JSON.stringify({

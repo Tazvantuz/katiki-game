@@ -25,7 +25,6 @@ export default class UIScene extends Phaser.Scene {
                     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
                     pointer-events: none; font-family: 'Nunito', sans-serif; z-index: 1000;
                 }
-                /* Верхняя панель */
                 .ui-top {
                     position: absolute; top: 15px; left: 15px; right: 15px;
                     display: flex; justify-content: space-between; pointer-events: auto;
@@ -48,7 +47,6 @@ export default class UIScene extends Phaser.Scene {
                 }
                 .currency-panel.bump { transform: scale(1.15); }
                 
-                /* Меню слева */
                 .ui-menu {
                     position: absolute; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 12px;
                     pointer-events: auto;
@@ -62,7 +60,6 @@ export default class UIScene extends Phaser.Scene {
                 .menu-btn:hover { transform: translateY(-5px) scale(1.05); background: #fff; box-shadow: 0 15px 30px rgba(0,0,0,0.4); }
                 .menu-btn:active { transform: scale(0.95); }
                 
-                /* Чат */
                 .ui-chat {
                     position: absolute; bottom: 20px; left: 105px; width: 400px;
                     display: flex; flex-direction: column; gap: 10px; pointer-events: auto;
@@ -96,7 +93,6 @@ export default class UIScene extends Phaser.Scene {
                 }
                 .chat-send:hover { background: #388E3C; }
 
-                /* Модальные окна */
                 .modal-overlay {
                     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
                     background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px);
@@ -121,7 +117,6 @@ export default class UIScene extends Phaser.Scene {
                 .modal-close:hover { background: rgba(255,255,255,0.5); transform: rotate(90deg); }
                 .modal-body { padding: 30px; background: #f8f9fa; max-height: 400px; overflow-y: auto; }
                 
-                /* Карта */
                 .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
                 .map-card {
                     background: white; border-radius: 20px; padding: 25px; text-align: center;
@@ -130,7 +125,6 @@ export default class UIScene extends Phaser.Scene {
                 }
                 .map-card:hover { transform: translateY(-5px); border-color: #4CAF50; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
                 
-                /* Инвентарь */
                 .inv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
                 .inv-slot {
                     background: #e9ecef; border-radius: 20px; aspect-ratio: 1; display: flex;
@@ -166,7 +160,6 @@ export default class UIScene extends Phaser.Scene {
                 </div>
             </div>
 
-            <!-- Модалки -->
             <div class="modal-overlay" id="modal-map">
                 <div class="modal-content">
                     <div class="modal-header" style="background: linear-gradient(135deg, #FF9A9E, #FECFEF);">
@@ -219,7 +212,7 @@ export default class UIScene extends Phaser.Scene {
     }
 
     bindEvents() {
-        const username = localStorage.getItem('katiki_username') || 'Гость';
+        const username = sessionStorage.getItem('katiki_username') || 'Гость';
         document.getElementById('profile-name').innerText = username;
 
         document.getElementById('btn-map').onclick = () => this.toggleModal('modal-map');
@@ -235,7 +228,8 @@ export default class UIScene extends Phaser.Scene {
         });
 
         document.getElementById('btn-logout').onclick = () => {
-            localStorage.clear();
+            localStorage.removeItem('katiki_username');
+            sessionStorage.clear();
             window.location.reload();
         };
 

@@ -38,7 +38,6 @@ export default {
         if (existing) {
           return new Response(JSON.stringify({ error: 'Пользователь уже существует' }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        // Дефолтные значения задаются в схеме БД
         await env.DB.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').bind(username, hash).run();
         return new Response(JSON.stringify({ success: true, message: 'Регистрация успешна' }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       } catch (e) {
@@ -52,16 +51,14 @@ export default {
         const { username, password } = await request.json();
         const hash = await hashPassword(password);
         
-        // Запрашиваем данные ВМЕСТЕ с валютой и инвентарем
         const user = await env.DB.prepare('SELECT username, fluffies, inventory FROM users WHERE username = ? AND password_hash = ?').bind(username, hash).first();
         
         if (user) {
-          // Безопасный парсинг инвентаря на случай поврежденных данных
           let safeInventory = [];
           try {
              safeInventory = JSON.parse(user.inventory || '[]');
           } catch (parseError) {
-             safeInventory = ["🍎", "🍣"]; // Дефолт при ошибке
+             safeInventory = ["🍎", "🍣"];
           }
 
           return new Response(JSON.stringify({ 
@@ -75,8 +72,7 @@ export default {
         }
       } catch (e) {
         console.error("Login DB error:", e.message);
-        // Если ошибка всё ещё в БД (например, колонки не добавлены)
-        return new Response(JSON.stringify({ error: 'Ошибка базы данных. Проверьте, обновлена ли таблица.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: 'Ошибка базы данных.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
@@ -104,9 +100,18 @@ export class GameRoom {
     
     const url = new URL(request.url);
     const username = url.searchParams.get('username') || 'Гость';
+
+    // ПРОВЕРКА: Если такой ник уже играет - отклоняем
+    for (let p of this.sessions.values()) {
+        if (p.name === username) {
+            server.send(JSON.stringify({ type: 'error', message: 'Этот аккаунт уже в сети (запущен в другой вкладке)!' }));
+            server.close();
+            return new Response(null, { status: 101, webSocket: client });
+        }
+    }
     
     const playerId = Math.random().toString(36).substring(2, 9);
-    const playerData = { id: playerId, name: username, x: 512, y: 384, angle: 0, location: 'square' };
+    const playerData = { id: playerId, name: username, x: 512, y: 450, angle: 0, location: 'square' };
     this.sessions.set(server, playerData);
 
     const existingPlayers = Array.from(this.sessions.values()).filter(p => p.id !== playerId);
@@ -136,7 +141,7 @@ export class GameRoom {
         else if (data.type === 'change_location') {
           player.location = data.location;
           player.x = 512;
-          player.y = 384;
+          player.y = 450;
           
           this.broadcast({ 
             type: 'player_moved', 

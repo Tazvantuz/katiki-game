@@ -20,9 +20,9 @@ export default class MainScene extends Phaser.Scene {
         this.obstacles = [];
 
         this.locations = {
-            'square': { name: 'Центральная площадь', desc: 'Сердце города', color: 0x90EE90, arrowTo: [{ id: 'forest', x: 1400, y: 600 }] },
-            'forest': { name: 'Изумрудный лес', desc: 'Тихое место', color: 0x228B22, arrowTo: [{ id: 'square', x: 600, y: 1000 }, { id: 'beach', x: 1400, y: 1000 }] },
-            'beach': { name: 'Солнечный пляж', desc: 'Море и песок', color: 0xF4A460, arrowTo: [{ id: 'forest', x: 600, y: 600 }] }
+            'square': { name: 'Центральная площадь', desc: 'Сердце города', color: 0x90EE90, arrowTo: [{ id: 'forest', x: 1600, y: 600 }] },
+            'forest': { name: 'Изумрудный лес', desc: 'Тихое место', color: 0x228B22, arrowTo: [{ id: 'square', x: 800, y: 1200 }, { id: 'beach', x: 1600, y: 1200 }] },
+            'beach': { name: 'Солнечный пляж', desc: 'Море и песок', color: 0xF4A460, arrowTo: [{ id: 'forest', x: 800, y: 600 }] }
         };
     }
 
@@ -64,42 +64,51 @@ export default class MainScene extends Phaser.Scene {
     }
 
     generateTextures() {
-        // 1. Катик
+        // 1. Катик (4 стороны)
         const width = 64, height = 64;
-        const colors = { body: '#F5A623', belly: '#FFFFFF', ears: '#E88A1A', eyes: '#222222', blush: '#FFB6C1' };
+        const colors = { body: '#F5A623', belly: '#FFFFFF', ears: '#E88A1A', eyes: '#222222', blush: '#FFB6C1', outline: '#B8731A' };
         const drawKatik = (key, dir) => {
             const canvas = this.textures.createCanvas(key, width, height);
             const ctx = canvas.context;
             const cx = width / 2, cy = height / 2;
             
-            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.beginPath(); ctx.ellipse(cx, cy + 20, 16, 8, 0, 0, Math.PI * 2); ctx.fill();
             
             ctx.fillStyle = colors.body;
+            ctx.strokeStyle = colors.outline;
+            ctx.lineWidth = 1.5;
+            
+            // Хвост
             ctx.beginPath();
             if (dir === 'left') ctx.ellipse(cx + 12, cy + 5, 12, 6, Math.PI / 4, 0, Math.PI * 2);
             else if (dir === 'right') ctx.ellipse(cx - 12, cy + 5, 12, 6, -Math.PI / 4, 0, Math.PI * 2);
             else ctx.ellipse(cx, cy + 10, 6, 12, 0, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fill(); ctx.stroke();
 
-            ctx.beginPath(); ctx.ellipse(cx, cy + 8, 16, 14, 0, 0, Math.PI * 2); ctx.fill();
+            // Тело
+            ctx.beginPath(); ctx.ellipse(cx, cy + 8, 16, 14, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             if (dir !== 'up') {
                 ctx.fillStyle = colors.belly;
                 ctx.beginPath(); ctx.ellipse(cx, cy + 12, 10, 8, 0, 0, Math.PI * 2); ctx.fill();
             }
+            
+            // Голова
             ctx.fillStyle = colors.body;
-            ctx.beginPath(); ctx.arc(cx, cy - 6, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx, cy - 6, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
+            // Уши
             ctx.fillStyle = colors.ears;
             if (dir === 'down' || dir === 'up') {
-                ctx.beginPath(); ctx.moveTo(cx - 14, cy - 18); ctx.lineTo(cx - 4, cy - 24); ctx.lineTo(cx - 6, cy - 10); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(cx + 14, cy - 18); ctx.lineTo(cx + 4, cy - 24); ctx.lineTo(cx + 6, cy - 10); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx - 14, cy - 18); ctx.lineTo(cx - 4, cy - 24); ctx.lineTo(cx - 6, cy - 10); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + 14, cy - 18); ctx.lineTo(cx + 4, cy - 24); ctx.lineTo(cx + 6, cy - 10); ctx.fill(); ctx.stroke();
             } else if (dir === 'left') {
-                ctx.beginPath(); ctx.moveTo(cx - 2, cy - 20); ctx.lineTo(cx - 12, cy - 22); ctx.lineTo(cx - 8, cy - 10); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx - 2, cy - 20); ctx.lineTo(cx - 12, cy - 22); ctx.lineTo(cx - 8, cy - 10); ctx.fill(); ctx.stroke();
             } else if (dir === 'right') {
-                ctx.beginPath(); ctx.moveTo(cx + 2, cy - 20); ctx.lineTo(cx + 12, cy - 22); ctx.lineTo(cx + 8, cy - 10); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx + 2, cy - 20); ctx.lineTo(cx + 12, cy - 22); ctx.lineTo(cx + 8, cy - 10); ctx.fill(); ctx.stroke();
             }
 
+            // Мордочка
             if (dir === 'down' || dir === 'left' || dir === 'right') {
                 ctx.fillStyle = colors.eyes;
                 const eyeX = dir === 'left' ? -8 : (dir === 'right' ? 8 : 0);
@@ -107,8 +116,8 @@ export default class MainScene extends Phaser.Scene {
                     ctx.beginPath(); ctx.arc(cx - 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
                     ctx.beginPath(); ctx.arc(cx + 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
                     ctx.fillStyle = '#FFF';
-                    ctx.beginPath(); ctx.arc(cx - 8, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(cx + 6, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(cx - 8, cy - 7, 1.5, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(cx + 6, cy - 7, 1.5, 0, Math.PI * 2); ctx.fill();
                     ctx.fillStyle = colors.blush;
                     ctx.beginPath(); ctx.ellipse(cx - 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
                     ctx.beginPath(); ctx.ellipse(cx + 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
@@ -117,7 +126,7 @@ export default class MainScene extends Phaser.Scene {
                 } else {
                     ctx.beginPath(); ctx.arc(cx + eyeX, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
                     ctx.fillStyle = '#FFF';
-                    ctx.beginPath(); ctx.arc(cx + eyeX + (dir === 'left' ? -1 : 1), cy - 7, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(cx + eyeX + (dir === 'left' ? -1.5 : 1.5), cy - 7, 1.5, 0, Math.PI * 2); ctx.fill();
                     ctx.fillStyle = colors.blush;
                     ctx.beginPath(); ctx.ellipse(cx + eyeX + (dir === 'left' ? -4 : 4), cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
                 }
@@ -127,38 +136,62 @@ export default class MainScene extends Phaser.Scene {
         ['down', 'up', 'left', 'right'].forEach(d => drawKatik('katik_' + d, d));
 
         // 2. Дерево
-        const treeCanvas = this.textures.createCanvas('tree', 100, 140);
+        const treeCanvas = this.textures.createCanvas('tree', 120, 160);
         const tCtx = treeCanvas.context;
-        tCtx.fillStyle = 'rgba(0,0,0,0.2)'; tCtx.beginPath(); tCtx.ellipse(50, 120, 30, 15, 0, 0, Math.PI*2); tCtx.fill();
-        tCtx.fillStyle = '#8B4513'; tCtx.fillRect(40, 80, 20, 40);
-        tCtx.fillStyle = '#2E8B57'; tCtx.beginPath(); tCtx.arc(50, 70, 40, 0, Math.PI*2); tCtx.fill();
-        tCtx.fillStyle = '#3CB371'; tCtx.beginPath(); tCtx.arc(35, 50, 30, 0, Math.PI*2); tCtx.fill(); tCtx.beginPath(); tCtx.arc(65, 50, 30, 0, Math.PI*2); tCtx.fill();
-        tCtx.fillStyle = '#90EE90'; tCtx.beginPath(); tCtx.arc(50, 40, 25, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = 'rgba(0,0,0,0.25)'; tCtx.beginPath(); tCtx.ellipse(60, 140, 40, 15, 0, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = '#5C4033'; tCtx.fillRect(50, 90, 20, 50);
+        tCtx.fillStyle = '#8B4513'; tCtx.fillRect(52, 90, 10, 50);
+        // Крона (слои)
+        tCtx.fillStyle = '#228B22'; tCtx.beginPath(); tCtx.arc(60, 80, 45, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = '#2E8B57'; tCtx.beginPath(); tCtx.arc(45, 60, 35, 0, Math.PI*2); tCtx.fill(); tCtx.beginPath(); tCtx.arc(75, 60, 35, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = '#3CB371'; tCtx.beginPath(); tCtx.arc(60, 45, 30, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = '#90EE90'; tCtx.beginPath(); tCtx.arc(50, 40, 15, 0, Math.PI*2); tCtx.fill();
         treeCanvas.refresh();
 
-        // 3. Дом
-        const houseCanvas = this.textures.createCanvas('house', 160, 160);
+        // 3. Дом (Полноценная изометрия)
+        const houseCanvas = this.textures.createCanvas('house', 160, 180);
         const hCtx = houseCanvas.context;
-        hCtx.fillStyle = 'rgba(0,0,0,0.2)'; hCtx.beginPath(); hCtx.ellipse(80, 140, 60, 25, 0, 0, Math.PI*2); hCtx.fill();
-        hCtx.fillStyle = '#F5DEB3'; hCtx.beginPath(); hCtx.moveTo(20, 80); hCtx.lineTo(80, 110); hCtx.lineTo(80, 150); hCtx.lineTo(20, 120); hCtx.fill();
-        hCtx.fillStyle = '#DEB887'; hCtx.beginPath(); hCtx.moveTo(80, 110); hCtx.lineTo(140, 80); hCtx.lineTo(140, 120); hCtx.lineTo(80, 150); hCtx.fill();
-        hCtx.fillStyle = '#CD5C5C'; hCtx.beginPath(); hCtx.moveTo(10, 80); hCtx.lineTo(80, 30); hCtx.lineTo(150, 80); hCtx.lineTo(80, 50); hCtx.fill();
-        hCtx.fillStyle = '#8B4513'; hCtx.beginPath(); hCtx.moveTo(90, 120); hCtx.lineTo(110, 110); hCtx.lineTo(110, 140); hCtx.lineTo(90, 150); hCtx.fill();
-        hCtx.fillStyle = '#87CEEB'; hCtx.beginPath(); hCtx.moveTo(40, 100); hCtx.lineTo(60, 90); hCtx.lineTo(60, 110); hCtx.lineTo(40, 120); hCtx.fill();
+        // Тень
+        hCtx.fillStyle = 'rgba(0,0,0,0.25)'; hCtx.beginPath(); hCtx.ellipse(80, 150, 70, 35, 0, 0, Math.PI*2); hCtx.fill();
+        // Стена левая (светлая)
+        hCtx.fillStyle = '#FDF5E6'; 
+        hCtx.beginPath(); hCtx.moveTo(20, 80); hCtx.lineTo(80, 110); hCtx.lineTo(80, 160); hCtx.lineTo(20, 130); hCtx.fill();
+        // Стена правая (тёмная)
+        hCtx.fillStyle = '#DEB887'; 
+        hCtx.beginPath(); hCtx.moveTo(80, 110); hCtx.lineTo(140, 80); hCtx.lineTo(140, 130); hCtx.lineTo(80, 160); hCtx.fill();
+        // Крыша левая
+        hCtx.fillStyle = '#B22222'; 
+        hCtx.beginPath(); hCtx.moveTo(10, 80); hCtx.lineTo(80, 25); hCtx.lineTo(80, 60); hCtx.lineTo(30, 105); hCtx.fill();
+        // Крыша правая
+        hCtx.fillStyle = '#8B0000'; 
+        hCtx.beginPath(); hCtx.moveTo(80, 25); hCtx.lineTo(150, 80); hCtx.lineTo(130, 105); hCtx.lineTo(80, 60); hCtx.fill();
+        // Труба
+        hCtx.fillStyle = '#696969'; hCtx.fillRect(110, 45, 15, 30);
+        hCtx.fillStyle = '#A9A9A9'; hCtx.fillRect(110, 45, 15, 5);
+        // Дверь
+        hCtx.fillStyle = '#8B4513'; 
+        hCtx.beginPath(); hCtx.moveTo(85, 125); hCtx.lineTo(105, 115); hCtx.lineTo(105, 145); hCtx.lineTo(85, 155); hCtx.fill();
+        // Окно
+        hCtx.fillStyle = '#87CEEB'; 
+        hCtx.beginPath(); hCtx.moveTo(35, 105); hCtx.lineTo(55, 95); hCtx.lineTo(55, 115); hCtx.lineTo(35, 125); hCtx.fill();
         houseCanvas.refresh();
 
         // 4. Фонтан
-        const fountCanvas = this.textures.createCanvas('fountain', 120, 120);
+        const fountCanvas = this.textures.createCanvas('fountain', 160, 140);
         const fCtx = fountCanvas.context;
-        fCtx.fillStyle = 'rgba(0,0,0,0.2)'; fCtx.beginPath(); fCtx.ellipse(60, 100, 50, 20, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#A9A9A9'; fCtx.beginPath(); fCtx.ellipse(60, 80, 50, 25, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#4682B4'; fCtx.beginPath(); fCtx.ellipse(60, 80, 40, 20, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#A9A9A9'; fCtx.fillRect(55, 30, 10, 50);
-        fCtx.beginPath(); fCtx.ellipse(60, 30, 20, 10, 0, 0, Math.PI*2); fCtx.fill();
-        fCtx.fillStyle = '#87CEFA'; fCtx.beginPath(); fCtx.arc(60, 20, 10, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = 'rgba(0,0,0,0.25)'; fCtx.beginPath(); fCtx.ellipse(80, 110, 70, 30, 0, 0, Math.PI*2); fCtx.fill();
+        // Внешний бортик
+        fCtx.fillStyle = '#D3D3D3'; fCtx.beginPath(); fCtx.ellipse(80, 90, 70, 35, 0, 0, Math.PI*2); fCtx.fill();
+        // Внутренняя вода
+        fCtx.fillStyle = '#4682B4'; fCtx.beginPath(); fCtx.ellipse(80, 90, 55, 25, 0, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#87CEFA'; fCtx.beginPath(); fCtx.ellipse(80, 85, 50, 20, 0, 0, Math.PI*2); fCtx.fill();
+        // Колонна
+        fCtx.fillStyle = '#A9A9A9'; fCtx.fillRect(70, 40, 20, 50);
+        fCtx.beginPath(); fCtx.ellipse(80, 40, 30, 15, 0, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#87CEFA'; fCtx.beginPath(); fCtx.ellipse(80, 35, 25, 10, 0, 0, Math.PI*2); fCtx.fill();
         fountCanvas.refresh();
         
-        // Стрелка
+        // 5. Стрелка
         const size = 64;
         const arrowCanvas = this.textures.createCanvas('arrow_tile', size, size);
         const aCtx = arrowCanvas.context;
@@ -168,27 +201,38 @@ export default class MainScene extends Phaser.Scene {
         aCtx.lineTo(size/2 - 5, size/2 - 15); aCtx.lineTo(size/2 + 5, size/2 - 15); aCtx.lineTo(size/2 + 5, size/2);
         aCtx.lineTo(size/2 + 15, size/2); aCtx.closePath(); aCtx.fill();
         arrowCanvas.refresh();
+        
+        // 6. Частица воды (для фонтана)
+        const partCanvas = this.textures.createCanvas('water_drop', 8, 8);
+        const pCtx = partCanvas.context;
+        pCtx.fillStyle = '#87CEFA';
+        pCtx.beginPath(); pCtx.arc(4, 4, 4, 0, Math.PI*2); pCtx.fill();
+        partCanvas.refresh();
     }
 
     buildWorld() {
         if (this.worldGraphics) this.worldGraphics.destroy();
         if (this.arrowsGroup) this.arrowsGroup.clear(true, true);
+        if (this.emitters) this.emitters.forEach(e => e.destroy());
         
         this.obstacles = [];
+        this.emitters = [];
         this.worldGraphics = this.add.graphics();
         this.arrowsGroup = this.add.group();
         
         const locData = this.locations[this.currentLocation];
         const tileWidth = 64, tileHeight = 32;
-        const size = 30;
+        const size = 80; // Огромная карта 80х80
 
         this.worldGraphics.lineStyle(1, 0x000000, 0.05);
         for (let row = 0; row < size; row++) {
             for (let col = 0; col < size; col++) {
                 const colorVar = Phaser.Display.Color.ValueToColor(locData.color).brighten(Phaser.Math.Between(-15, 15)).color;
                 this.worldGraphics.fillStyle(colorVar, 1);
+                
                 const x = 512 + (col - row) * (tileWidth / 2);
-                const y = 384 + (col + row) * (tileHeight / 2);
+                const y = 384 + (col + row - size) * (tileHeight / 2);
+                
                 this.worldGraphics.beginPath();
                 this.worldGraphics.moveTo(x, y - tileHeight / 2);
                 this.worldGraphics.lineTo(x + tileWidth / 2, y);
@@ -202,20 +246,34 @@ export default class MainScene extends Phaser.Scene {
 
         if (this.currentLocation === 'square') {
             this.spawnObject('fountain', 512, 384, 50);
-            this.spawnObject('house', 300, 200, 60);
-            this.spawnObject('house', 700, 200, 60);
-            this.spawnObject('house', 200, 500, 60);
-            this.spawnObject('tree', 800, 500, 30);
-            this.spawnObject('tree', 850, 450, 30);
+            
+            // Фонтан брызги
+            const emitter = this.add.particles(512, 350, 'water_drop', {
+                speed: { min: 20, max: 60 },
+                angle: { min: 200, max: 340 },
+                scale: { start: 1, end: 0 },
+                lifespan: 800,
+                gravityY: 150,
+                frequency: 50
+            });
+            this.emitters.push(emitter);
+
+            this.spawnObject('house', 250, 150, 60);
+            this.spawnObject('house', 750, 150, 60);
+            this.spawnObject('house', 150, 550, 60);
+            this.spawnObject('house', 800, 550, 60);
+            this.spawnObject('tree', 100, 300, 30);
+            this.spawnObject('tree', 950, 300, 30);
         } 
         else if (this.currentLocation === 'forest') {
-            for(let i=0; i<15; i++) {
-                this.spawnObject('tree', Phaser.Math.Between(200, 800), Phaser.Math.Between(200, 600), 30);
+            for(let i=0; i<30; i++) {
+                this.spawnObject('tree', Phaser.Math.Between(100, 900), Phaser.Math.Between(100, 700), 30);
             }
         }
         else if (this.currentLocation === 'beach') {
-            this.spawnObject('tree', 300, 300, 30);
-            this.spawnObject('tree', 400, 600, 30);
+            this.spawnObject('tree', 200, 200, 30);
+            this.spawnObject('tree', 300, 600, 30);
+            this.spawnObject('tree', 700, 200, 30);
         }
 
         locData.arrowTo.forEach(arrow => {
@@ -231,13 +289,15 @@ export default class MainScene extends Phaser.Scene {
 
         this.game.events.emit('updateLocationName', locData.name);
         
-        this.cameras.main.setBounds(-500, -500, 2000, 2000);
+        // Камера
+        this.cameras.main.setBounds(-1000, -1000, 3000, 2000);
+        this.cameras.main.setZoom(1.2); // Приближаем камеру для детализации
         if (this.myPlayer) this.cameras.main.startFollow(this.myPlayer, true, 0.1, 0.1);
     }
 
     spawnObject(key, x, y, radius) {
         const obj = this.add.image(x, y, key);
-        obj.setOrigin(0.5, 1); 
+        obj.setOrigin(0.5, 0.9); // Точка опоры ближе к низу
         obj.setDepth(y);
         this.obstacles.push({ x, y, r: radius });
     }
@@ -312,7 +372,7 @@ export default class MainScene extends Phaser.Scene {
         const sprite = this.add.sprite(0, 0, 'katik_down').setOrigin(0.5, 0.8);
         container.sprite = sprite;
         
-        const text = this.add.text(0, -45, name, { fontSize: '14px', fill: '#ffffff', backgroundColor: '#00000088', padding: { x: 6, y: 3 }, borderRadius: 8 }).setOrigin(0.5);
+        const text = this.add.text(0, -45, name, { fontSize: '14px', fontFamily: 'Nunito', fill: '#ffffff', backgroundColor: '#00000088', padding: { x: 6, y: 3 }, borderRadius: 8 }).setOrigin(0.5);
 
         container.add([sprite, text]);
         container.setDepth(y);
@@ -389,14 +449,10 @@ export default class MainScene extends Phaser.Scene {
                 let nextX = this.myPlayer.x + Math.cos(moveAngle) * this.speed;
                 let nextY = this.myPlayer.y + Math.sin(moveAngle) * this.speed;
                 
-                // Проверка коллизий (простая круговая)
                 let canMove = true;
                 for (let obs of this.obstacles) {
                     const distToObs = Phaser.Math.Distance.Between(nextX, nextY, obs.x, obs.y);
-                    if (distToObs < obs.r + 15) { // 15 - радиус персонажа
-                        canMove = false;
-                        break;
-                    }
+                    if (distToObs < obs.r + 15) { canMove = false; break; }
                 }
                 
                 if (canMove) {
@@ -405,7 +461,6 @@ export default class MainScene extends Phaser.Scene {
                     this.myPlayer.sprite.y = Math.abs(Math.sin(time * 0.015)) * -5;
                     this.myPlayer.setDepth(this.myPlayer.y);
                 } else {
-                    // Если врезались, сбрасываем цель, чтобы не застревать
                     this.targetX = null;
                     this.targetY = null;
                 }

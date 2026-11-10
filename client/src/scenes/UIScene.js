@@ -10,7 +10,6 @@ export default class UIScene extends Phaser.Scene {
     }
 
     injectHTML() {
-        // Создаем контейнер для UI, если его нет
         let uiContainer = document.getElementById('game-ui');
         if (!uiContainer) {
             uiContainer = document.createElement('div');
@@ -32,18 +31,20 @@ export default class UIScene extends Phaser.Scene {
                     display: flex; justify-content: space-between; pointer-events: auto;
                 }
                 .location-badge {
-                    background: rgba(0, 0, 0, 0.6); color: white; padding: 10px 25px;
+                    background: rgba(15, 23, 42, 0.8); color: white; padding: 10px 25px;
                     border-radius: 30px; font-weight: 900; font-size: 20px; backdrop-filter: blur(10px);
-                    border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 8px 25px rgba(0,0,0,0.4);
                     display: flex; align-items: center; gap: 10px; text-shadow: 1px 1px 2px #000;
                 }
                 .location-badge::before { content: '📍'; font-size: 24px; }
+                
                 .currency-panel {
                     background: linear-gradient(135deg, #FFD700, #FF8C00);
                     padding: 10px 25px; border-radius: 30px; color: #fff; font-weight: 900;
-                    font-size: 20px; box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
-                    display: flex; align-items: center; gap: 10px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                    font-size: 20px; box-shadow: 0 8px 25px rgba(255, 140, 0, 0.5);
+                    display: flex; align-items: center; gap: 10px; text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
                     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    border: 2px solid #FFE4B5;
                 }
                 .currency-panel.bump { transform: scale(1.15); }
                 
@@ -54,11 +55,11 @@ export default class UIScene extends Phaser.Scene {
                 }
                 .menu-btn {
                     width: 65px; height: 65px; border-radius: 20px; border: 3px solid #fff;
-                    background: rgba(255, 255, 255, 0.9); box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+                    background: rgba(255, 255, 255, 0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.3);
                     font-size: 32px; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     display: flex; justify-content: center; align-items: center;
                 }
-                .menu-btn:hover { transform: translateY(-5px) scale(1.05); background: #fff; box-shadow: 0 12px 25px rgba(0,0,0,0.3); }
+                .menu-btn:hover { transform: translateY(-5px) scale(1.05); background: #fff; box-shadow: 0 15px 30px rgba(0,0,0,0.4); }
                 .menu-btn:active { transform: scale(0.95); }
                 
                 /* Чат */
@@ -67,22 +68,22 @@ export default class UIScene extends Phaser.Scene {
                     display: flex; flex-direction: column; gap: 10px; pointer-events: auto;
                 }
                 .chat-messages {
-                    height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+                    height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
                     mask-image: linear-gradient(to bottom, transparent, black 20%);
                     -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%);
                     scrollbar-width: none; padding-top: 30px;
                 }
                 .chat-messages::-webkit-scrollbar { display: none; }
                 .chat-msg {
-                    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+                    background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(5px);
                     color: white; padding: 8px 15px; border-radius: 15px; font-size: 15px;
                     width: fit-content; max-width: 95%; animation: slideInMsg 0.3s ease-out forwards;
-                    border: 1px solid rgba(255,255,255,0.1);
+                    border: 1px solid rgba(255,255,255,0.2);
                 }
                 @keyframes slideInMsg { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 .chat-input-wrapper {
                     display: flex; background: rgba(255, 255, 255, 0.95); border-radius: 25px;
-                    box-shadow: 0 5px 20px rgba(0,0,0,0.2); overflow: hidden;
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.3); overflow: hidden;
                     border: 3px solid transparent; transition: border 0.3s;
                 }
                 .chat-input-wrapper:focus-within { border-color: #4CAF50; }
@@ -98,14 +99,14 @@ export default class UIScene extends Phaser.Scene {
                 /* Модальные окна */
                 .modal-overlay {
                     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+                    background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px);
                     display: none; justify-content: center; align-items: center; pointer-events: auto;
                 }
                 .modal-overlay.active { display: flex; animation: fadeIn 0.3s; }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 .modal-content {
                     background: #fff; width: 600px; border-radius: 30px; overflow: hidden;
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    box-shadow: 0 25px 70px rgba(0,0,0,0.6); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     border: 4px solid #fff;
                 }
                 @keyframes popIn { from { transform: scale(0.8); } to { transform: scale(1); } }
@@ -141,7 +142,11 @@ export default class UIScene extends Phaser.Scene {
             <div class="ui-top">
                 <div class="location-badge" id="current-location">Загрузка...</div>
                 <div class="currency-panel" id="currency-panel">
-                    <span>🪙</span>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" fill="#FFF" stroke="#B8860B" stroke-width="2"/>
+                        <circle cx="12" cy="12" r="8" fill="#FFD700"/>
+                        <path d="M12 7V17M9 9H15M9 15H15" stroke="#DAA520" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
                     <span id="currency-amount">0</span>
                 </div>
             </div>
@@ -217,13 +222,11 @@ export default class UIScene extends Phaser.Scene {
         const username = localStorage.getItem('katiki_username') || 'Гость';
         document.getElementById('profile-name').innerText = username;
 
-        // Кнопки меню
         document.getElementById('btn-map').onclick = () => this.toggleModal('modal-map');
         document.getElementById('btn-inv').onclick = () => this.toggleModal('modal-inv');
         document.getElementById('btn-friends').onclick = () => this.toggleModal('modal-friends');
         document.getElementById('btn-profile').onclick = () => this.toggleModal('modal-profile');
         
-        // Закрытие модалок
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.onclick = (e) => {
                 const modalId = e.target.getAttribute('data-close');
@@ -231,13 +234,11 @@ export default class UIScene extends Phaser.Scene {
             };
         });
 
-        // Выход
         document.getElementById('btn-logout').onclick = () => {
             localStorage.clear();
             window.location.reload();
         };
 
-        // Чат
         const input = document.getElementById('chat-input');
         const sendBtn = document.getElementById('chat-send');
         const sendMsg = () => {
@@ -250,7 +251,6 @@ export default class UIScene extends Phaser.Scene {
         sendBtn.onclick = sendMsg;
         input.onkeypress = (e) => { if (e.key === 'Enter') sendMsg(); };
 
-        // Слушатели событий от MainScene
         this.game.events.on('updateCurrency', (val) => {
             const panel = document.getElementById('currency-panel');
             document.getElementById('currency-amount').innerText = val;

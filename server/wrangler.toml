@@ -11,3 +11,9 @@ class_name = "GameRoom"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["GameRoom"]
+
+# Настройки базы данных D1 для пользователей
+[[d1_databases]]
+binding = "DB"
+database_name = "katiki-db"
+database_id = "6b521fa3-097d-42be-8f5d-92439a3d7b96"

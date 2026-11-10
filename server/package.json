@@ -7,6 +7,9 @@
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "wrangler": "^3.0.0"
+    "wrangler": "^4.160.0"
+  },
+  "optionalDependencies": {
+    "@cloudflare/workerd-windows-64": "^1.20261110.1"
   }
 }

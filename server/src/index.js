@@ -1,11 +1,57 @@
+// Функция для хеширования пароля (SHA-256 с солью)
+async function hashPassword(password, salt = 'katiki_salt') {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + salt);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    // WebSocket подключение
     if (url.pathname === '/ws') {
       const id = env.GAME_ROOM.idFromName("global-room");
       const room = env.GAME_ROOM.get(id);
       return room.fetch(request);
     }
+
+    // API для регистрации
+    if (url.pathname === '/api/register' && request.method === 'POST') {
+      try {
+        const { username, password } = await request.json();
+        if (!username || !password) {
+          return new Response(JSON.stringify({ error: 'Введите логин и пароль' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
+        const hash = await hashPassword(password);
+        const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
+        if (existing) {
+          return new Response(JSON.stringify({ error: 'Пользователь уже существует' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+        }
+        await env.DB.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').bind(username, hash).run();
+        return new Response(JSON.stringify({ success: true, message: 'Регистрация успешна' }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+
+    // API для входа
+    if (url.pathname === '/api/login' && request.method === 'POST') {
+      try {
+        const { username, password } = await request.json();
+        const hash = await hashPassword(password);
+        const user = await env.DB.prepare('SELECT id, username FROM users WHERE username = ? AND password_hash = ?').bind(username, hash).first();
+        if (user) {
+          return new Response(JSON.stringify({ success: true, username: user.username }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        } else {
+          return new Response(JSON.stringify({ error: 'Неверный логин или пароль' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+
     return new Response("Katiki Server is running!", { status: 200 });
   }
 };
@@ -29,7 +75,6 @@ export class GameRoom {
     server.accept();
     
     const playerId = Math.random().toString(36).substring(2, 9);
-    // Добавляем angle (угол поворота) в стартовые данные
     const playerData = { id: playerId, x: 512, y: 384, angle: 0 };
     this.sessions.set(server, playerData);
 
@@ -46,7 +91,7 @@ export class GameRoom {
           if (player) {
             player.x = data.x;
             player.y = data.y;
-            player.angle = data.angle; // Сохраняем угол
+            player.angle = data.angle;
             this.broadcast({ type: 'player_moved', id: playerId, x: player.x, y: player.y, angle: player.angle }, server);
           }
         }

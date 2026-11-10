@@ -4,7 +4,6 @@ import Phaser from 'phaser';
 export default class UIScene extends Phaser.Scene {
     constructor() {
         super({ key: 'UIScene', active: false });
-        this.chatMessages = [];
     }
 
     create() {
@@ -13,14 +12,32 @@ export default class UIScene extends Phaser.Scene {
         this.createChat();
         this.createModals();
 
-        // Слушаем события от MainScene
         this.game.events.on('updateCurrency', (fluffies) => {
             const el = document.getElementById('currency-amount');
             if (el) {
                 el.innerText = fluffies;
-                // Анимация прибавления
                 el.parentElement.classList.add('bump');
                 setTimeout(() => el.parentElement.classList.remove('bump'), 300);
+            }
+        });
+
+        this.game.events.on('updateInventory', (items) => {
+            const grid = document.getElementById('inventory-grid');
+            if (!grid) return;
+            grid.innerHTML = ''; // Очищаем
+            // Рисуем предметы
+            items.forEach(item => {
+                const slot = document.createElement('div');
+                slot.className = 'inv-slot';
+                slot.innerText = item;
+                grid.appendChild(slot);
+            });
+            // Добиваем пустыми слотами до 8
+            for (let i = items.length; i < 8; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'inv-slot empty';
+                slot.innerText = '+';
+                grid.appendChild(slot);
             }
         });
 
@@ -46,11 +63,9 @@ export default class UIScene extends Phaser.Scene {
                     pointer-events: auto; background: rgba(0, 0, 0, 0.6); color: white;
                     padding: 8px 20px; border-radius: 20px; font-weight: 800; font-size: 18px;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
-                    border: 1px solid rgba(255,255,255,0.2);
-                    display: flex; align-items: center; gap: 10px;
+                    border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 10px;
                 }
                 .location-badge::before { content: '📍'; font-size: 20px; }
-                
                 .currency-panel {
                     pointer-events: auto; background: linear-gradient(135deg, #FFD700, #FFA500);
                     padding: 8px 20px; border-radius: 20px; color: #fff; font-weight: 800;
@@ -125,7 +140,6 @@ export default class UIScene extends Phaser.Scene {
                 }
                 @keyframes slideInMsg { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
                 .chat-msg b { color: #FFD700; margin-right: 5px; }
-                
                 .chat-input-wrapper {
                     display: flex; background: rgba(255, 255, 255, 0.9); border-radius: 20px;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden;
@@ -177,11 +191,8 @@ export default class UIScene extends Phaser.Scene {
         msg.className = 'chat-msg';
         msg.innerHTML = `<b style="color: ${color}">${name}:</b> ${text}`;
         container.appendChild(msg);
-        
-        // Автоскролл вниз
         container.scrollTop = container.scrollHeight;
         
-        // Ограничиваем количество сообщений в DOM
         if (container.children.length > 50) {
             container.removeChild(container.firstChild);
         }
@@ -198,7 +209,6 @@ export default class UIScene extends Phaser.Scene {
                 }
                 .modal-overlay.active { display: flex; animation: fadeIn 0.3s forwards; }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                
                 .modal-content {
                     background: linear-gradient(135deg, #ffffff, #f0f0f0); width: 600px; height: 400px;
                     border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
@@ -207,7 +217,6 @@ export default class UIScene extends Phaser.Scene {
                     border: 4px solid #fff;
                 }
                 @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-                
                 .modal-header {
                     padding: 20px; background: #FF9A9E; color: white; font-size: 24px;
                     font-weight: 800; display: flex; justify-content: space-between; align-items: center;
@@ -218,10 +227,7 @@ export default class UIScene extends Phaser.Scene {
                     border-radius: 50%; font-size: 20px; cursor: pointer; transition: all 0.2s;
                 }
                 .modal-close:hover { background: rgba(255,255,255,0.5); transform: rotate(90deg); }
-                
                 .modal-body { flex: 1; padding: 20px; overflow-y: auto; }
-                
-                /* Карта */
                 .map-locations { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
                 .map-card {
                     background: white; border-radius: 20px; padding: 20px; text-align: center;
@@ -232,38 +238,30 @@ export default class UIScene extends Phaser.Scene {
                 .map-card h3 { margin: 0 0 10px 0; color: #333; }
                 .map-card p { margin: 0; color: #666; font-size: 12px; }
                 
-                /* Инвентарь */
                 .inventory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
                 .inv-slot {
                     aspect-ratio: 1; background: #e0e0e0; border-radius: 15px;
                     display: flex; justify-content: center; align-items: center;
                     font-size: 30px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
                 }
-                .inv-slot.empty { opacity: 0.5; }
-                
-                /* Профиль */
+                .inv-slot.empty { opacity: 0.5; color: #aaa; font-size: 24px; }
+
                 .profile-info { display: flex; gap: 20px; align-items: center; }
                 .profile-avatar { width: 100px; height: 100px; background: #FFD700; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 50px; }
                 .profile-details h2 { margin: 0 0 10px 0; }
                 .profile-details p { margin: 5px 0; color: #666; }
             </style>
 
-            <!-- Модальное окно: КАРТА -->
             <div class="modal-overlay" id="modal-map">
                 <div class="modal-content">
                     <div class="modal-header">
                         <span>🗺️ Карта мира</span>
                         <button class="modal-close" data-close="modal-map">×</button>
                     </div>
-                    <div class="modal-body">
-                        <div class="map-locations" id="map-list">
-                            <!-- Заполняется динамически -->
-                        </div>
-                    </div>
+                    <div class="modal-body"><div class="map-locations" id="map-list"></div></div>
                 </div>
             </div>
 
-            <!-- Модальное окно: ИНВЕНТАРЬ -->
             <div class="modal-overlay" id="modal-inv">
                 <div class="modal-content">
                     <div class="modal-header" style="background: #2196F3;">
@@ -271,21 +269,13 @@ export default class UIScene extends Phaser.Scene {
                         <button class="modal-close" data-close="modal-inv">×</button>
                     </div>
                     <div class="modal-body">
-                        <div class="inventory-grid">
-                            <div class="inv-slot">🍎</div>
-                            <div class="inv-slot">🍣</div>
-                            <div class="inv-slot">🎩</div>
-                            <div class="inv-slot empty">+</div>
-                            <div class="inv-slot empty">+</div>
-                            <div class="inv-slot empty">+</div>
-                            <div class="inv-slot empty">+</div>
-                            <div class="inv-slot empty">+</div>
+                        <div class="inventory-grid" id="inventory-grid">
+                            <!-- Заполняется динамически -->
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Модальное окно: ПРОФИЛЬ -->
             <div class="modal-overlay" id="modal-profile">
                 <div class="modal-content">
                     <div class="modal-header" style="background: #4CAF50;">
@@ -308,7 +298,6 @@ export default class UIScene extends Phaser.Scene {
                 </div>
             </div>
             
-            <!-- Модальное окно: ДРУЗЬЯ -->
             <div class="modal-overlay" id="modal-friends">
                 <div class="modal-content">
                     <div class="modal-header" style="background: #9C27B0;">
@@ -324,7 +313,6 @@ export default class UIScene extends Phaser.Scene {
 
         this.add.dom(0, 0).createFromHTML(html);
 
-        // Обработка закрытия
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const modalId = e.target.getAttribute('data-close');
@@ -332,17 +320,14 @@ export default class UIScene extends Phaser.Scene {
             });
         });
 
-        // Заполняем профиль
         const username = localStorage.getItem('katiki_username') || 'Гость';
         document.getElementById('profile-name').innerText = username;
 
-        // Заполняем карту (локации будут добавлены позже через события)
         this.game.events.on('initMap', (locations, currentLoc) => {
             const list = document.getElementById('map-list');
             list.innerHTML = '';
             locations.forEach(loc => {
-                if (loc.id === currentLoc) return; // Не показываем текущую
-                
+                if (loc.id === currentLoc) return;
                 const card = document.createElement('div');
                 card.className = 'map-card';
                 card.innerHTML = `<h3>${loc.name}</h3><p>${loc.desc}</p>`;
@@ -358,7 +343,6 @@ export default class UIScene extends Phaser.Scene {
     toggleModal(id) {
         const modal = document.getElementById(id);
         if (modal) {
-            // Закрываем все остальные
             document.querySelectorAll('.modal-overlay').forEach(m => {
                 if (m.id !== id) m.classList.remove('active');
             });

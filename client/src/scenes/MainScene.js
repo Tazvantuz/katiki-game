@@ -180,12 +180,9 @@ export default class MainScene extends Phaser.Scene {
         const fountCanvas = this.textures.createCanvas('fountain', 160, 140);
         const fCtx = fountCanvas.context;
         fCtx.fillStyle = 'rgba(0,0,0,0.25)'; fCtx.beginPath(); fCtx.ellipse(80, 110, 70, 30, 0, 0, Math.PI*2); fCtx.fill();
-        // Внешний бортик
         fCtx.fillStyle = '#D3D3D3'; fCtx.beginPath(); fCtx.ellipse(80, 90, 70, 35, 0, 0, Math.PI*2); fCtx.fill();
-        // Внутренняя вода
         fCtx.fillStyle = '#4682B4'; fCtx.beginPath(); fCtx.ellipse(80, 90, 55, 25, 0, 0, Math.PI*2); fCtx.fill();
         fCtx.fillStyle = '#87CEFA'; fCtx.beginPath(); fCtx.ellipse(80, 85, 50, 20, 0, 0, Math.PI*2); fCtx.fill();
-        // Колонна
         fCtx.fillStyle = '#A9A9A9'; fCtx.fillRect(70, 40, 20, 50);
         fCtx.beginPath(); fCtx.ellipse(80, 40, 30, 15, 0, 0, Math.PI*2); fCtx.fill();
         fCtx.fillStyle = '#87CEFA'; fCtx.beginPath(); fCtx.ellipse(80, 35, 25, 10, 0, 0, Math.PI*2); fCtx.fill();
@@ -202,7 +199,7 @@ export default class MainScene extends Phaser.Scene {
         aCtx.lineTo(size/2 + 15, size/2); aCtx.closePath(); aCtx.fill();
         arrowCanvas.refresh();
         
-        // 6. Частица воды (для фонтана)
+        // 6. Частица воды
         const partCanvas = this.textures.createCanvas('water_drop', 8, 8);
         const pCtx = partCanvas.context;
         pCtx.fillStyle = '#87CEFA';
@@ -222,7 +219,7 @@ export default class MainScene extends Phaser.Scene {
         
         const locData = this.locations[this.currentLocation];
         const tileWidth = 64, tileHeight = 32;
-        const size = 80; // Огромная карта 80х80
+        const size = 80; // Карта 80х80
 
         this.worldGraphics.lineStyle(1, 0x000000, 0.05);
         for (let row = 0; row < size; row++) {
@@ -245,10 +242,11 @@ export default class MainScene extends Phaser.Scene {
         }
 
         if (this.currentLocation === 'square') {
-            this.spawnObject('fountain', 512, 384, 50);
+            // Фонтан сдвинут вверх, чтобы освободить точку спавна (512, 450)
+            this.spawnObject('fountain', 512, 300, 50);
             
             // Фонтан брызги
-            const emitter = this.add.particles(512, 350, 'water_drop', {
+            const emitter = this.add.particles(512, 260, 'water_drop', {
                 speed: { min: 20, max: 60 },
                 angle: { min: 200, max: 340 },
                 scale: { start: 1, end: 0 },
@@ -266,8 +264,14 @@ export default class MainScene extends Phaser.Scene {
             this.spawnObject('tree', 950, 300, 30);
         } 
         else if (this.currentLocation === 'forest') {
+            // Деревья спавнятся на расстоянии от центра (512, 450)
             for(let i=0; i<30; i++) {
-                this.spawnObject('tree', Phaser.Math.Between(100, 900), Phaser.Math.Between(100, 700), 30);
+                let tx = Phaser.Math.Between(100, 900);
+                let ty = Phaser.Math.Between(100, 700);
+                // Проверка, чтобы не заспавнить на игроке
+                if (Phaser.Math.Distance.Between(tx, ty, 512, 450) > 150) {
+                    this.spawnObject('tree', tx, ty, 30);
+                }
             }
         }
         else if (this.currentLocation === 'beach') {
@@ -289,15 +293,14 @@ export default class MainScene extends Phaser.Scene {
 
         this.game.events.emit('updateLocationName', locData.name);
         
-        // Камера
         this.cameras.main.setBounds(-1000, -1000, 3000, 2000);
-        this.cameras.main.setZoom(1.2); // Приближаем камеру для детализации
+        this.cameras.main.setZoom(1.2);
         if (this.myPlayer) this.cameras.main.startFollow(this.myPlayer, true, 0.1, 0.1);
     }
 
     spawnObject(key, x, y, radius) {
         const obj = this.add.image(x, y, key);
-        obj.setOrigin(0.5, 0.9); // Точка опоры ближе к низу
+        obj.setOrigin(0.5, 0.9);
         obj.setDepth(y);
         this.obstacles.push({ x, y, r: radius });
     }
@@ -334,7 +337,8 @@ export default class MainScene extends Phaser.Scene {
                 this.buildWorld();
                 
                 if (!this.myPlayer) {
-                    this.createPlayer(this.myId, 512, 384, username);
+                    // Спавн в безопасной зоне (сдвинут вниз от фонтана)
+                    this.createPlayer(this.myId, 512, 450, username);
                     this.cameras.main.startFollow(this.myPlayer, true, 0.1, 0.1);
                 }
 
@@ -405,9 +409,10 @@ export default class MainScene extends Phaser.Scene {
         this.cameras.main.once('camerafadeoutcomplete', () => {
             this.currentLocation = locId;
             if (this.myPlayer) {
+                // Безопасная точка телепортации
                 this.myPlayer.x = 512;
-                this.myPlayer.y = 384;
-                this.myPlayer.setDepth(384);
+                this.myPlayer.y = 450;
+                this.myPlayer.setDepth(450);
             }
             this.buildWorld();
             this.game.events.emit('initMap', Object.keys(this.locations).map(k => ({id: k, ...this.locations[k]})), this.currentLocation);
@@ -449,10 +454,21 @@ export default class MainScene extends Phaser.Scene {
                 let nextX = this.myPlayer.x + Math.cos(moveAngle) * this.speed;
                 let nextY = this.myPlayer.y + Math.sin(moveAngle) * this.speed;
                 
-                let canMove = true;
+                // Проверка: если мы УЖЕ застряли в объекте, разрешаем движение, чтобы выбраться
+                let alreadyStuck = false;
                 for (let obs of this.obstacles) {
-                    const distToObs = Phaser.Math.Distance.Between(nextX, nextY, obs.x, obs.y);
-                    if (distToObs < obs.r + 15) { canMove = false; break; }
+                    if (Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y, obs.x, obs.y) < obs.r) {
+                        alreadyStuck = true;
+                        break;
+                    }
+                }
+
+                let canMove = true;
+                if (!alreadyStuck) {
+                    for (let obs of this.obstacles) {
+                        const distToObs = Phaser.Math.Distance.Between(nextX, nextY, obs.x, obs.y);
+                        if (distToObs < obs.r + 15) { canMove = false; break; }
+                    }
                 }
                 
                 if (canMove) {

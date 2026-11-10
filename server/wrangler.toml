@@ -1,4 +1,4 @@
-name = "katiki-server"
+name = "katiki-game"
 main = "src/index.js"
 compatibility_date = "2023-10-01"
 
@@ -7,6 +7,7 @@ compatibility_date = "2023-10-01"
 name = "GAME_ROOM"
 class_name = "GameRoom"
 
+# Миграция для бесплатного плана: используем SQLite-бэкенд
 [[migrations]]
 tag = "v1"
-new_classes = ["GameRoom"]
+new_sqlite_classes = ["GameRoom"]

@@ -14,7 +14,7 @@ export class GameRoom {
   constructor(state, env) {
     this.state = state;
     this.env = env;
-    this.sessions = new Map(); // Храним сессии: WebSocket -> Данные игрока
+    this.sessions = new Map();
   }
 
   async fetch(request) {
@@ -28,16 +28,14 @@ export class GameRoom {
 
     server.accept();
     
-    // Генерируем случайный ID для игрока
     const playerId = Math.random().toString(36).substring(2, 9);
-    const playerData = { id: playerId, x: 512, y: 384 }; // Стартовая позиция
+    // Добавляем angle (угол поворота) в стартовые данные
+    const playerData = { id: playerId, x: 512, y: 384, angle: 0 };
     this.sessions.set(server, playerData);
 
-    // Отправляем новому игроку его ID и список уже существующих игроков
     const existingPlayers = Array.from(this.sessions.values()).filter(p => p.id !== playerId);
     server.send(JSON.stringify({ type: 'init', id: playerId, players: existingPlayers }));
 
-    // Оповещаем всех остальных, что зашел новый игрок
     this.broadcast({ type: 'player_joined', player: playerData }, server);
 
     server.addEventListener('message', (msg) => {
@@ -48,8 +46,8 @@ export class GameRoom {
           if (player) {
             player.x = data.x;
             player.y = data.y;
-            // Рассылаем новую позицию всем, кроме отправителя
-            this.broadcast({ type: 'player_moved', id: playerId, x: player.x, y: player.y }, server);
+            player.angle = data.angle; // Сохраняем угол
+            this.broadcast({ type: 'player_moved', id: playerId, x: player.x, y: player.y, angle: player.angle }, server);
           }
         }
       } catch (e) {
@@ -59,14 +57,12 @@ export class GameRoom {
 
     server.addEventListener('close', () => {
       this.sessions.delete(server);
-      // Оповещаем всех, что игрок вышел
       this.broadcast({ type: 'player_left', id: playerId });
     });
 
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  // Вспомогательная функция для рассылки
   broadcast(message, excludeSession = null) {
     const msgString = JSON.stringify(message);
     this.sessions.forEach((_, session) => {

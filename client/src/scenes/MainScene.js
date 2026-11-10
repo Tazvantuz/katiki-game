@@ -8,7 +8,7 @@ export default class MainScene extends Phaser.Scene {
         this.otherPlayers = {};
         this.myPlayer = null;
         this.ws = null;
-        this.speed = 4;
+        this.speed = 5;
         this.lastSendTime = 0;
         this.targetX = null;
         this.targetY = null;
@@ -16,28 +16,22 @@ export default class MainScene extends Phaser.Scene {
         this.currentDir = 'down';
         this.currentLocation = 'square';
         
-        // Данные игрока (заполняются из БД при входе)
-        this.userData = {
-            fluffies: 100,
-            inventory: ["🍎", "🍣"]
-        };
+        this.userData = { fluffies: 100, inventory: ["🍎", "🍣"] };
+        this.obstacles = [];
 
         this.locations = {
-            'square': { name: 'Центральная площадь', desc: 'Сердце города', color: 0x90EE90, arrowTo: [{ id: 'forest', x: 700, y: 300 }] },
-            'forest': { name: 'Изумрудный лес', desc: 'Тихое место для прогулок', color: 0x2E8B57, arrowTo: [{ id: 'square', x: 300, y: 500 }, { id: 'beach', x: 700, y: 500 }] },
-            'beach': { name: 'Солнечный пляж', desc: 'Море и песок', color: 0xF4A460, arrowTo: [{ id: 'forest', x: 300, y: 300 }] }
+            'square': { name: 'Центральная площадь', desc: 'Сердце города', color: 0x90EE90, arrowTo: [{ id: 'forest', x: 1400, y: 600 }] },
+            'forest': { name: 'Изумрудный лес', desc: 'Тихое место', color: 0x228B22, arrowTo: [{ id: 'square', x: 600, y: 1000 }, { id: 'beach', x: 1400, y: 1000 }] },
+            'beach': { name: 'Солнечный пляж', desc: 'Море и песок', color: 0xF4A460, arrowTo: [{ id: 'forest', x: 600, y: 600 }] }
         };
-        this.arrows = [];
     }
 
     preload() {
-        this.generateKatikTextures();
-        this.generateArrowTexture();
+        this.generateTextures();
     }
 
     create() {
         if (localStorage.getItem('katiki_username')) {
-            // Загружаем сохраненные данные из localStorage
             this.userData.fluffies = parseInt(localStorage.getItem('katiki_fluffies') || '100');
             this.userData.inventory = JSON.parse(localStorage.getItem('katiki_inventory') || '["🍎", "🍣"]');
             this.startGame();
@@ -54,120 +48,378 @@ export default class MainScene extends Phaser.Scene {
         this.scene.launch('UIScene');
         
         this.game.events.on('sendChatMessage', (text) => {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.ws.send(JSON.stringify({ type: 'chat', text }));
-            }
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ type: 'chat', text }));
         });
-
-        this.game.events.on('teleportTo', (locId) => {
-            this.changeLocation(locId);
-        });
+        this.game.events.on('teleportTo', (locId) => this.changeLocation(locId));
 
         this.setupControls();
         this.connectToServer();
         
         this.time.delayedCall(500, () => {
-            // Отправляем данные в UI
             this.game.events.emit('updateCurrency', this.userData.fluffies);
             this.game.events.emit('updateInventory', this.userData.inventory);
             this.game.events.emit('initMap', Object.keys(this.locations).map(k => ({id: k, ...this.locations[k]})), this.currentLocation);
-            this.drawWorld();
+            this.buildWorld();
         });
     }
 
-    generateArrowTexture() {
-        const size = 64;
-        const canvas = this.textures.createCanvas('arrow_tile', size, size);
-        const ctx = canvas.context;
-        
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-        ctx.beginPath(); ctx.ellipse(size/2, size/2, 28, 14, 0, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = '#00FF00';
-        ctx.beginPath();
-        ctx.moveTo(size/2, size/2 + 15); ctx.lineTo(size/2 - 15, size/2); ctx.lineTo(size/2 - 5, size/2);
-        ctx.lineTo(size/2 - 5, size/2 - 15); ctx.lineTo(size/2 + 5, size/2 - 15); ctx.lineTo(size/2 + 5, size/2);
-        ctx.lineTo(size/2 + 15, size/2); ctx.closePath(); ctx.fill();
-        
-        canvas.refresh();
-    }
-
-    generateKatikTextures() {
-        const width = 64;
-        const height = 64;
+    generateTextures() {
+        // 1. Катик
+        const width = 64, height = 64;
         const colors = { body: '#F5A623', belly: '#FFFFFF', ears: '#E88A1A', eyes: '#222222', blush: '#FFB6C1' };
-
-        const drawKatik = (key, direction) => {
+        const drawKatik = (key, dir) => {
             const canvas = this.textures.createCanvas(key, width, height);
             const ctx = canvas.context;
-            ctx.clearRect(0, 0, width, height);
-            const cx = width / 2; const cy = height / 2;
-
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.beginPath(); ctx.ellipse(cx, cy + 18, 16, 8, 0, 0, Math.PI * 2); ctx.fill();
-
+            const cx = width / 2, cy = height / 2;
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.beginPath(); ctx.ellipse(cx, cy + 20, 16, 8, 0, 0, Math.PI * 2); ctx.fill();
+            
             ctx.fillStyle = colors.body;
             ctx.beginPath();
-            if (direction === 'left') ctx.ellipse(cx + 12, cy + 5, 12, 6, Math.PI / 4, 0, Math.PI * 2);
-            else if (direction === 'right') ctx.ellipse(cx - 12, cy + 5, 12, 6, -Math.PI / 4, 0, Math.PI * 2);
+            if (dir === 'left') ctx.ellipse(cx + 12, cy + 5, 12, 6, Math.PI / 4, 0, Math.PI * 2);
+            else if (dir === 'right') ctx.ellipse(cx - 12, cy + 5, 12, 6, -Math.PI / 4, 0, Math.PI * 2);
             else ctx.ellipse(cx, cy + 10, 6, 12, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = colors.body;
             ctx.beginPath(); ctx.ellipse(cx, cy + 8, 16, 14, 0, 0, Math.PI * 2); ctx.fill();
-
-            if (direction !== 'up') {
+            if (dir !== 'up') {
                 ctx.fillStyle = colors.belly;
                 ctx.beginPath(); ctx.ellipse(cx, cy + 12, 10, 8, 0, 0, Math.PI * 2); ctx.fill();
             }
-
             ctx.fillStyle = colors.body;
             ctx.beginPath(); ctx.arc(cx, cy - 6, 18, 0, Math.PI * 2); ctx.fill();
 
             ctx.fillStyle = colors.ears;
-            if (direction === 'down' || direction === 'up') {
+            if (dir === 'down' || dir === 'up') {
                 ctx.beginPath(); ctx.moveTo(cx - 14, cy - 18); ctx.lineTo(cx - 4, cy - 24); ctx.lineTo(cx - 6, cy - 10); ctx.fill();
                 ctx.beginPath(); ctx.moveTo(cx + 14, cy - 18); ctx.lineTo(cx + 4, cy - 24); ctx.lineTo(cx + 6, cy - 10); ctx.fill();
-            } else if (direction === 'left') {
+            } else if (dir === 'left') {
                 ctx.beginPath(); ctx.moveTo(cx - 2, cy - 20); ctx.lineTo(cx - 12, cy - 22); ctx.lineTo(cx - 8, cy - 10); ctx.fill();
-            } else if (direction === 'right') {
+            } else if (dir === 'right') {
                 ctx.beginPath(); ctx.moveTo(cx + 2, cy - 20); ctx.lineTo(cx + 12, cy - 22); ctx.lineTo(cx + 8, cy - 10); ctx.fill();
             }
 
-            if (direction === 'down') {
+            if (dir === 'down' || dir === 'left' || dir === 'right') {
                 ctx.fillStyle = colors.eyes;
-                ctx.beginPath(); ctx.arc(cx - 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(cx + 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#FFF';
-                ctx.beginPath(); ctx.arc(cx - 8, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(cx + 6, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = colors.blush;
-                ctx.beginPath(); ctx.ellipse(cx - 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(cx + 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#FF8A8A';
-                ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.lineTo(cx - 2, cy); ctx.lineTo(cx + 2, cy); ctx.fill();
-            } else if (direction === 'left') {
-                ctx.fillStyle = colors.eyes;
-                ctx.beginPath(); ctx.arc(cx - 8, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#FFF';
-                ctx.beginPath(); ctx.arc(cx - 9, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = colors.blush;
-                ctx.beginPath(); ctx.ellipse(cx - 12, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-            } else if (direction === 'right') {
-                ctx.fillStyle = colors.eyes;
-                ctx.beginPath(); ctx.arc(cx + 8, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#FFF';
-                ctx.beginPath(); ctx.arc(cx + 7, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = colors.blush;
-                ctx.beginPath(); ctx.ellipse(cx + 12, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+                const eyeX = dir === 'left' ? -8 : (dir === 'right' ? 8 : 0);
+                if (dir === 'down') {
+                    ctx.beginPath(); ctx.arc(cx - 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(cx + 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#FFF';
+                    ctx.beginPath(); ctx.arc(cx - 8, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(cx + 6, cy - 7, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = colors.blush;
+                    ctx.beginPath(); ctx.ellipse(cx - 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.ellipse(cx + 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#FF8A8A';
+                    ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.lineTo(cx - 2, cy); ctx.lineTo(cx + 2, cy); ctx.fill();
+                } else {
+                    ctx.beginPath(); ctx.arc(cx + eyeX, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#FFF';
+                    ctx.beginPath(); ctx.arc(cx + eyeX + (dir === 'left' ? -1 : 1), cy - 7, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = colors.blush;
+                    ctx.beginPath(); ctx.ellipse(cx + eyeX + (dir === 'left' ? -4 : 4), cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+                }
             }
             canvas.refresh();
         };
+        ['down', 'up', 'left', 'right'].forEach(d => drawKatik('katik_' + d, d));
 
-        drawKatik('katik_down', 'down');
-        drawKatik('katik_up', 'up');
-        drawKatik('katik_left', 'left');
-        drawKatik('katik_right', 'right');
+        // 2. Дерево
+        const treeCanvas = this.textures.createCanvas('tree', 100, 140);
+        const tCtx = treeCanvas.context;
+        tCtx.fillStyle = 'rgba(0,0,0,0.2)'; tCtx.beginPath(); tCtx.ellipse(50, 120, 30, 15, 0, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = '#8B4513'; tCtx.fillRect(40, 80, 20, 40);
+        tCtx.fillStyle = '#2E8B57'; tCtx.beginPath(); tCtx.arc(50, 70, 40, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = '#3CB371'; tCtx.beginPath(); tCtx.arc(35, 50, 30, 0, Math.PI*2); tCtx.fill(); tCtx.beginPath(); tCtx.arc(65, 50, 30, 0, Math.PI*2); tCtx.fill();
+        tCtx.fillStyle = '#90EE90'; tCtx.beginPath(); tCtx.arc(50, 40, 25, 0, Math.PI*2); tCtx.fill();
+        treeCanvas.refresh();
+
+        // 3. Дом
+        const houseCanvas = this.textures.createCanvas('house', 160, 160);
+        const hCtx = houseCanvas.context;
+        hCtx.fillStyle = 'rgba(0,0,0,0.2)'; hCtx.beginPath(); hCtx.ellipse(80, 140, 60, 25, 0, 0, Math.PI*2); hCtx.fill();
+        hCtx.fillStyle = '#F5DEB3'; hCtx.beginPath(); hCtx.moveTo(20, 80); hCtx.lineTo(80, 110); hCtx.lineTo(80, 150); hCtx.lineTo(20, 120); hCtx.fill();
+        hCtx.fillStyle = '#DEB887'; hCtx.beginPath(); hCtx.moveTo(80, 110); hCtx.lineTo(140, 80); hCtx.lineTo(140, 120); hCtx.lineTo(80, 150); hCtx.fill();
+        hCtx.fillStyle = '#CD5C5C'; hCtx.beginPath(); hCtx.moveTo(10, 80); hCtx.lineTo(80, 30); hCtx.lineTo(150, 80); hCtx.lineTo(80, 50); hCtx.fill();
+        hCtx.fillStyle = '#8B4513'; hCtx.beginPath(); hCtx.moveTo(90, 120); hCtx.lineTo(110, 110); hCtx.lineTo(110, 140); hCtx.lineTo(90, 150); hCtx.fill();
+        hCtx.fillStyle = '#87CEEB'; hCtx.beginPath(); hCtx.moveTo(40, 100); hCtx.lineTo(60, 90); hCtx.lineTo(60, 110); hCtx.lineTo(40, 120); hCtx.fill();
+        houseCanvas.refresh();
+
+        // 4. Фонтан
+        const fountCanvas = this.textures.createCanvas('fountain', 120, 120);
+        const fCtx = fountCanvas.context;
+        fCtx.fillStyle = 'rgba(0,0,0,0.2)'; fCtx.beginPath(); fCtx.ellipse(60, 100, 50, 20, 0, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#A9A9A9'; fCtx.beginPath(); fCtx.ellipse(60, 80, 50, 25, 0, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#4682B4'; fCtx.beginPath(); fCtx.ellipse(60, 80, 40, 20, 0, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#A9A9A9'; fCtx.fillRect(55, 30, 10, 50);
+        fCtx.beginPath(); fCtx.ellipse(60, 30, 20, 10, 0, 0, Math.PI*2); fCtx.fill();
+        fCtx.fillStyle = '#87CEFA'; fCtx.beginPath(); fCtx.arc(60, 20, 10, 0, Math.PI*2); fCtx.fill();
+        fountCanvas.refresh();
+        
+        // Стрелка
+        const size = 64;
+        const arrowCanvas = this.textures.createCanvas('arrow_tile', size, size);
+        const aCtx = arrowCanvas.context;
+        aCtx.fillStyle = 'rgba(0, 255, 0, 0.4)'; aCtx.beginPath(); aCtx.ellipse(size/2, size/2, 28, 14, 0, 0, Math.PI * 2); aCtx.fill();
+        aCtx.fillStyle = '#00FF00'; aCtx.beginPath();
+        aCtx.moveTo(size/2, size/2 + 15); aCtx.lineTo(size/2 - 15, size/2); aCtx.lineTo(size/2 - 5, size/2);
+        aCtx.lineTo(size/2 - 5, size/2 - 15); aCtx.lineTo(size/2 + 5, size/2 - 15); aCtx.lineTo(size/2 + 5, size/2);
+        aCtx.lineTo(size/2 + 15, size/2); aCtx.closePath(); aCtx.fill();
+        arrowCanvas.refresh();
+    }
+
+    buildWorld() {
+        if (this.worldGraphics) this.worldGraphics.destroy();
+        if (this.arrowsGroup) this.arrowsGroup.clear(true, true);
+        
+        this.obstacles = [];
+        this.worldGraphics = this.add.graphics();
+        this.arrowsGroup = this.add.group();
+        
+        const locData = this.locations[this.currentLocation];
+        const tileWidth = 64, tileHeight = 32;
+        const size = 30;
+
+        this.worldGraphics.lineStyle(1, 0x000000, 0.05);
+        for (let row = 0; row < size; row++) {
+            for (let col = 0; col < size; col++) {
+                const colorVar = Phaser.Display.Color.ValueToColor(locData.color).brighten(Phaser.Math.Between(-15, 15)).color;
+                this.worldGraphics.fillStyle(colorVar, 1);
+                const x = 512 + (col - row) * (tileWidth / 2);
+                const y = 384 + (col + row) * (tileHeight / 2);
+                this.worldGraphics.beginPath();
+                this.worldGraphics.moveTo(x, y - tileHeight / 2);
+                this.worldGraphics.lineTo(x + tileWidth / 2, y);
+                this.worldGraphics.lineTo(x, y + tileHeight / 2);
+                this.worldGraphics.lineTo(x - tileWidth / 2, y);
+                this.worldGraphics.closePath();
+                this.worldGraphics.fillPath();
+                this.worldGraphics.strokePath();
+            }
+        }
+
+        if (this.currentLocation === 'square') {
+            this.spawnObject('fountain', 512, 384, 50);
+            this.spawnObject('house', 300, 200, 60);
+            this.spawnObject('house', 700, 200, 60);
+            this.spawnObject('house', 200, 500, 60);
+            this.spawnObject('tree', 800, 500, 30);
+            this.spawnObject('tree', 850, 450, 30);
+        } 
+        else if (this.currentLocation === 'forest') {
+            for(let i=0; i<15; i++) {
+                this.spawnObject('tree', Phaser.Math.Between(200, 800), Phaser.Math.Between(200, 600), 30);
+            }
+        }
+        else if (this.currentLocation === 'beach') {
+            this.spawnObject('tree', 300, 300, 30);
+            this.spawnObject('tree', 400, 600, 30);
+        }
+
+        locData.arrowTo.forEach(arrow => {
+            const arrowSprite = this.add.sprite(arrow.x, arrow.y, 'arrow_tile');
+            arrowSprite.setDepth(arrow.y);
+            arrowSprite.targetLocation = arrow.id;
+            this.arrowsGroup.add(arrowSprite);
+            this.tweens.add({
+                targets: arrowSprite, alpha: { from: 0.5, to: 1 }, scaleX: { from: 0.9, to: 1.1 }, scaleY: { from: 0.9, to: 1.1 },
+                duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+            });
+        });
+
+        this.game.events.emit('updateLocationName', locData.name);
+        
+        this.cameras.main.setBounds(-500, -500, 2000, 2000);
+        if (this.myPlayer) this.cameras.main.startFollow(this.myPlayer, true, 0.1, 0.1);
+    }
+
+    spawnObject(key, x, y, radius) {
+        const obj = this.add.image(x, y, key);
+        obj.setOrigin(0.5, 1); 
+        obj.setDepth(y);
+        this.obstacles.push({ x, y, r: radius });
+    }
+
+    setupControls() {
+        this.input.on('pointerdown', (pointer) => {
+            if (pointer.event.target.tagName === 'DIV' || pointer.event.target.tagName === 'BUTTON' || pointer.event.target.tagName === 'INPUT') return;
+
+            if (pointer.leftButtonDown()) {
+                this.targetX = pointer.worldX;
+                this.targetY = pointer.worldY;
+                this.createClickMarker(pointer.worldX, pointer.worldY);
+            }
+        });
+    }
+
+    createClickMarker(x, y) {
+        const marker = this.add.ellipse(x, y, 20, 10, 0x00FF00, 0.8);
+        this.tweens.add({
+            targets: marker, alpha: 0, scaleX: 2, scaleY: 2, duration: 400, onComplete: () => marker.destroy()
+        });
+    }
+
+    connectToServer() {
+        const username = localStorage.getItem('katiki_username') || 'Гость';
+        this.ws = new WebSocket(`wss://katiki-game.katiland.workers.dev/ws?username=${encodeURIComponent(username)}`);
+
+        this.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'init') {
+                this.myId = data.id;
+                if (data.location) this.currentLocation = data.location;
+                this.buildWorld();
+                
+                if (!this.myPlayer) {
+                    this.createPlayer(this.myId, 512, 384, username);
+                    this.cameras.main.startFollow(this.myPlayer, true, 0.1, 0.1);
+                }
+
+                data.players.forEach(p => {
+                    if (p.location === this.currentLocation) this.createPlayer(p.id, p.x, p.y, p.name || 'Игрок', p.angle);
+                });
+            } 
+            else if (data.type === 'player_joined') {
+                if (data.player.location === this.currentLocation) this.createPlayer(data.player.id, data.player.x, data.player.y, data.player.name, data.player.angle);
+            } 
+            else if (data.type === 'player_moved') {
+                const p = this.otherPlayers[data.id];
+                if (p) {
+                    if (data.location === this.currentLocation) {
+                        p.setVisible(true);
+                        this.tweens.add({ targets: p, x: data.x, y: data.y, duration: 100 });
+                        this.updatePlayerDirection(p, data.angle);
+                    } else {
+                        p.setVisible(false);
+                    }
+                }
+            } 
+            else if (data.type === 'player_left') {
+                const p = this.otherPlayers[data.id];
+                if (p) { p.destroy(); delete this.otherPlayers[data.id]; }
+            }
+            else if (data.type === 'chat') {
+                this.game.events.emit('newChatMessage', { name: data.name, text: data.text, color: data.color });
+            }
+        };
+    }
+
+    createPlayer(id, x, y, name, angle = 0) {
+        const container = this.add.container(x, y);
+        const sprite = this.add.sprite(0, 0, 'katik_down').setOrigin(0.5, 0.8);
+        container.sprite = sprite;
+        
+        const text = this.add.text(0, -45, name, { fontSize: '14px', fill: '#ffffff', backgroundColor: '#00000088', padding: { x: 6, y: 3 }, borderRadius: 8 }).setOrigin(0.5);
+
+        container.add([sprite, text]);
+        container.setDepth(y);
+
+        if (id === this.myId) {
+            this.myPlayer = container;
+        } else {
+            this.otherPlayers[id] = container;
+            this.updatePlayerDirection(container, angle);
+        }
+    }
+
+    updatePlayerDirection(container, angle) {
+        let dir = 'down';
+        if (angle > -Math.PI/4 && angle <= Math.PI/4) dir = 'right';
+        else if (angle > Math.PI/4 && angle <= 3*Math.PI/4) dir = 'down';
+        else if (angle > -3*Math.PI/4 && angle <= -Math.PI/4) dir = 'up';
+        else dir = 'left';
+
+        if (container.currentDir !== dir) {
+            container.currentDir = dir;
+            container.sprite.setTexture(`katik_${dir}`);
+        }
+    }
+
+    changeLocation(locId) {
+        if (!this.locations[locId]) return;
+        this.cameras.main.fadeOut(300, 0, 0, 0);
+        
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+            this.currentLocation = locId;
+            if (this.myPlayer) {
+                this.myPlayer.x = 512;
+                this.myPlayer.y = 384;
+                this.myPlayer.setDepth(384);
+            }
+            this.buildWorld();
+            this.game.events.emit('initMap', Object.keys(this.locations).map(k => ({id: k, ...this.locations[k]})), this.currentLocation);
+
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ type: 'change_location', location: locId }));
+            }
+            this.cameras.main.fadeIn(300, 0, 0, 0);
+        });
+    }
+
+    update(time, delta) {
+        if (!this.myPlayer || !this.isLoggedIn) return;
+
+        const pointer = this.input.activePointer;
+        const angleToCursor = Phaser.Math.Angle.Between(this.myPlayer.x, this.myPlayer.y, pointer.worldX, pointer.worldY);
+        this.updatePlayerDirection(this.myPlayer, angleToCursor);
+
+        if (this.targetX !== null && this.targetY !== null) {
+            const dx = this.targetX - this.myPlayer.x;
+            const dy = this.targetY - this.myPlayer.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < this.speed) {
+                this.myPlayer.x = this.targetX;
+                this.myPlayer.y = this.targetY;
+                this.targetX = null;
+                this.targetY = null;
+                this.myPlayer.sprite.y = 0;
+                
+                if (this.arrowsGroup) {
+                    this.arrowsGroup.getChildren().forEach(arrow => {
+                        const distToArrow = Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y, arrow.x, arrow.y);
+                        if (distToArrow < 40) this.changeLocation(arrow.targetLocation);
+                    });
+                }
+            } else {
+                const moveAngle = Math.atan2(dy, dx);
+                let nextX = this.myPlayer.x + Math.cos(moveAngle) * this.speed;
+                let nextY = this.myPlayer.y + Math.sin(moveAngle) * this.speed;
+                
+                // Проверка коллизий (простая круговая)
+                let canMove = true;
+                for (let obs of this.obstacles) {
+                    const distToObs = Phaser.Math.Distance.Between(nextX, nextY, obs.x, obs.y);
+                    if (distToObs < obs.r + 15) { // 15 - радиус персонажа
+                        canMove = false;
+                        break;
+                    }
+                }
+                
+                if (canMove) {
+                    this.myPlayer.x = nextX;
+                    this.myPlayer.y = nextY;
+                    this.myPlayer.sprite.y = Math.abs(Math.sin(time * 0.015)) * -5;
+                    this.myPlayer.setDepth(this.myPlayer.y);
+                } else {
+                    // Если врезались, сбрасываем цель, чтобы не застревать
+                    this.targetX = null;
+                    this.targetY = null;
+                }
+
+                if (time - this.lastSendTime > 50) {
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(JSON.stringify({
+                            type: 'move', x: Math.round(this.myPlayer.x), y: Math.round(this.myPlayer.y), angle: angleToCursor, location: this.currentLocation
+                        }));
+                    }
+                    this.lastSendTime = time;
+                }
+            }
+        }
     }
 
     showAuthForm() {
@@ -247,12 +499,9 @@ export default class MainScene extends Phaser.Scene {
 
             try {
                 const res = await fetch('https://katiki-game.katiland.workers.dev/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
-                
                 if (data.success) {
                     showToast('Успешно! Теперь войди.', 'success');
                     form.getChildByID('password').value = '';
@@ -277,20 +526,16 @@ export default class MainScene extends Phaser.Scene {
 
             try {
                 const res = await fetch('https://katiki-game.katiland.workers.dev/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
                 
                 if (data.success) {
                     showToast('Успешный вход!', 'success');
                     setTimeout(() => {
-                        // Сохраняем данные игрока в localStorage
                         localStorage.setItem('katiki_username', data.username);
                         localStorage.setItem('katiki_fluffies', data.fluffies);
                         localStorage.setItem('katiki_inventory', JSON.stringify(data.inventory));
-                        
                         form.destroy();
                         this.startGame();
                     }, 1000);
@@ -304,214 +549,5 @@ export default class MainScene extends Phaser.Scene {
                 loginBtn.disabled = false;
             }
         });
-    }
-
-    drawWorld() {
-        if (this.worldGraphics) this.worldGraphics.destroy();
-        if (this.arrowsGroup) this.arrowsGroup.clear(true, true);
-
-        this.worldGraphics = this.add.graphics();
-        this.arrowsGroup = this.add.group();
-        const locData = this.locations[this.currentLocation];
-        
-        const tileWidth = 64;
-        const tileHeight = 32;
-        
-        this.worldGraphics.lineStyle(1, 0x000000, 0.1);
-
-        for (let row = 0; row < 20; row++) {
-            for (let col = 0; col < 20; col++) {
-                const colorVariant = Phaser.Display.Color.ValueToColor(locData.color).brighten(Phaser.Math.Between(-10, 10)).color;
-                this.worldGraphics.fillStyle(colorVariant, 1);
-                
-                const x = 512 + (col - row) * (tileWidth / 2);
-                const y = 384 + (col + row) * (tileHeight / 2);
-                
-                this.worldGraphics.beginPath();
-                this.worldGraphics.moveTo(x, y - tileHeight / 2);
-                this.worldGraphics.lineTo(x + tileWidth / 2, y);
-                this.worldGraphics.lineTo(x, y + tileHeight / 2);
-                this.worldGraphics.lineTo(x - tileWidth / 2, y);
-                this.worldGraphics.closePath();
-                this.worldGraphics.fillPath();
-                this.worldGraphics.strokePath();
-            }
-        }
-
-        locData.arrowTo.forEach(arrow => {
-            const arrowSprite = this.add.sprite(arrow.x, arrow.y, 'arrow_tile');
-            arrowSprite.setDepth(arrow.y);
-            arrowSprite.targetLocation = arrow.id;
-            this.arrowsGroup.add(arrowSprite);
-
-            this.tweens.add({
-                targets: arrowSprite,
-                alpha: { from: 0.5, to: 1 },
-                scaleX: { from: 0.9, to: 1.1 },
-                scaleY: { from: 0.9, to: 1.1 },
-                duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-            });
-        });
-
-        this.game.events.emit('updateLocationName', locData.name);
-    }
-
-    setupControls() {
-        this.input.on('pointerdown', (pointer) => {
-            if (pointer.event.target.tagName === 'DIV' || pointer.event.target.tagName === 'BUTTON' || pointer.event.target.tagName === 'INPUT') return;
-
-            if (pointer.leftButtonDown()) {
-                this.targetX = pointer.worldX;
-                this.targetY = pointer.worldY;
-                this.createClickMarker(pointer.worldX, pointer.worldY);
-            }
-        });
-    }
-
-    createClickMarker(x, y) {
-        const marker = this.add.ellipse(x, y, 20, 10, 0x00FF00, 0.8);
-        this.tweens.add({
-            targets: marker, alpha: 0, scaleX: 2, scaleY: 2, duration: 400, onComplete: () => marker.destroy()
-        });
-    }
-
-    connectToServer() {
-        const username = localStorage.getItem('katiki_username') || 'Гость';
-        this.ws = new WebSocket(`wss://katiki-game.katiland.workers.dev/ws?username=${encodeURIComponent(username)}`);
-
-        this.ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'init') {
-                this.myId = data.id;
-                if (data.location) this.currentLocation = data.location;
-                this.drawWorld();
-                
-                if (!this.myPlayer) this.createPlayer(this.myId, 512, 384, username);
-
-                data.players.forEach(p => {
-                    if (p.location === this.currentLocation) this.createPlayer(p.id, p.x, p.y, p.name || 'Игрок', p.angle);
-                });
-            } 
-            else if (data.type === 'player_joined') {
-                if (data.player.location === this.currentLocation) this.createPlayer(data.player.id, data.player.x, data.player.y, data.player.name, data.player.angle);
-            } 
-            else if (data.type === 'player_moved') {
-                const p = this.otherPlayers[data.id];
-                if (p) {
-                    if (data.location === this.currentLocation) {
-                        p.setVisible(true);
-                        this.tweens.add({ targets: p, x: data.x, y: data.y, duration: 100 });
-                        this.updatePlayerDirection(p, data.angle);
-                    } else {
-                        p.setVisible(false);
-                    }
-                }
-            } 
-            else if (data.type === 'player_left') {
-                const p = this.otherPlayers[data.id];
-                if (p) { p.destroy(); delete this.otherPlayers[data.id]; }
-            }
-            else if (data.type === 'chat') {
-                this.game.events.emit('newChatMessage', { name: data.name, text: data.text, color: data.color });
-            }
-        };
-    }
-
-    createPlayer(id, x, y, name, angle = 0) {
-        const container = this.add.container(x, y);
-        const sprite = this.add.sprite(0, 0, 'katik_down').setOrigin(0.5, 0.8);
-        container.sprite = sprite;
-        
-        const text = this.add.text(0, -45, name, { fontSize: '14px', fill: '#ffffff', backgroundColor: '#00000088', padding: { x: 6, y: 3 }, borderRadius: 8 }).setOrigin(0.5);
-
-        container.add([sprite, text]);
-        container.setDepth(y);
-
-        if (id === this.myId) {
-            this.myPlayer = container;
-        } else {
-            this.otherPlayers[id] = container;
-            this.updatePlayerDirection(container, angle);
-        }
-    }
-
-    updatePlayerDirection(container, angle) {
-        let dir = 'down';
-        if (angle > -Math.PI/4 && angle <= Math.PI/4) dir = 'right';
-        else if (angle > Math.PI/4 && angle <= 3*Math.PI/4) dir = 'down';
-        else if (angle > -3*Math.PI/4 && angle <= -Math.PI/4) dir = 'up';
-        else dir = 'left';
-
-        if (container.currentDir !== dir) {
-            container.currentDir = dir;
-            container.sprite.setTexture(`katik_${dir}`);
-        }
-    }
-
-    changeLocation(locId) {
-        if (!this.locations[locId]) return;
-        this.cameras.main.fadeOut(300, 0, 0, 0);
-        
-        this.cameras.main.once('camerafadeoutcomplete', () => {
-            this.currentLocation = locId;
-            if (this.myPlayer) {
-                this.myPlayer.x = 512;
-                this.myPlayer.y = 384;
-                this.myPlayer.setDepth(384);
-            }
-            this.drawWorld();
-            this.game.events.emit('initMap', Object.keys(this.locations).map(k => ({id: k, ...this.locations[k]})), this.currentLocation);
-
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.ws.send(JSON.stringify({ type: 'change_location', location: locId }));
-            }
-            this.cameras.main.fadeIn(300, 0, 0, 0);
-        });
-    }
-
-    update(time, delta) {
-        if (!this.myPlayer || !this.isLoggedIn) return;
-
-        const pointer = this.input.activePointer;
-        const angleToCursor = Phaser.Math.Angle.Between(this.myPlayer.x, this.myPlayer.y, pointer.worldX, pointer.worldY);
-        this.updatePlayerDirection(this.myPlayer, angleToCursor);
-
-        if (this.targetX !== null && this.targetY !== null) {
-            const dx = this.targetX - this.myPlayer.x;
-            const dy = this.targetY - this.myPlayer.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < this.speed) {
-                this.myPlayer.x = this.targetX;
-                this.myPlayer.y = this.targetY;
-                this.targetX = null;
-                this.targetY = null;
-                this.myPlayer.sprite.y = 0;
-                
-                if (this.arrowsGroup) {
-                    this.arrowsGroup.getChildren().forEach(arrow => {
-                        const distToArrow = Phaser.Math.Distance.Between(this.myPlayer.x, this.myPlayer.y, arrow.x, arrow.y);
-                        if (distToArrow < 40) this.changeLocation(arrow.targetLocation);
-                    });
-                }
-            } else {
-                const moveAngle = Math.atan2(dy, dx);
-                this.myPlayer.x += Math.cos(moveAngle) * this.speed;
-                this.myPlayer.y += Math.sin(moveAngle) * this.speed;
-                
-                this.myPlayer.sprite.y = Math.abs(Math.sin(time * 0.015)) * -5;
-                this.myPlayer.setDepth(this.myPlayer.y);
-
-                if (time - this.lastSendTime > 50) {
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        this.ws.send(JSON.stringify({
-                            type: 'move', x: Math.round(this.myPlayer.x), y: Math.round(this.myPlayer.y), angle: angleToCursor, location: this.currentLocation
-                        }));
-                    }
-                    this.lastSendTime = time;
-                }
-            }
-        }
     }
 }

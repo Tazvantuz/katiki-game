@@ -1,327 +1,287 @@
 // client/src/scenes/UIScene.js
-import Phaser from 'phaser';
-
 export default class UIScene extends Phaser.Scene {
     constructor() {
         super({ key: 'UIScene', active: false });
     }
 
     create() {
-        this.createTopBar();
-        this.createBottomBar();
-        this.createChat();
-        this.createModals();
-
-        this.game.events.on('updateCurrency', (fluffies) => {
-            const el = document.getElementById('currency-amount');
-            if (el) {
-                el.innerText = fluffies;
-                el.parentElement.classList.add('bump');
-                setTimeout(() => el.parentElement.classList.remove('bump'), 300);
-            }
-        });
-
-        this.game.events.on('updateInventory', (items) => {
-            const grid = document.getElementById('inventory-grid');
-            if (!grid) return;
-            grid.innerHTML = ''; // Очищаем
-            // Рисуем предметы
-            items.forEach(item => {
-                const slot = document.createElement('div');
-                slot.className = 'inv-slot';
-                slot.innerText = item;
-                grid.appendChild(slot);
-            });
-            // Добиваем пустыми слотами до 8
-            for (let i = items.length; i < 8; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'inv-slot empty';
-                slot.innerText = '+';
-                grid.appendChild(slot);
-            }
-        });
-
-        this.game.events.on('newChatMessage', (data) => {
-            this.addChatMessage(data.name, data.text, data.color);
-        });
-
-        this.game.events.on('updateLocationName', (name) => {
-            const el = document.getElementById('current-location');
-            if (el) el.innerText = name;
-        });
+        this.injectHTML();
+        this.bindEvents();
     }
 
-    createTopBar() {
-        const html = `
+    injectHTML() {
+        // Создаем контейнер для UI, если его нет
+        let uiContainer = document.getElementById('game-ui');
+        if (!uiContainer) {
+            uiContainer = document.createElement('div');
+            uiContainer.id = 'game-ui';
+            document.body.appendChild(uiContainer);
+        }
+
+        uiContainer.innerHTML = `
             <style>
+                @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap');
+                
+                #game-ui {
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                    pointer-events: none; font-family: 'Nunito', sans-serif; z-index: 1000;
+                }
+                /* Верхняя панель */
                 .ui-top {
-                    position: absolute; top: 0; left: 0; width: 100%; pointer-events: none;
-                    display: flex; justify-content: space-between; padding: 15px; box-sizing: border-box;
-                    font-family: 'Nunito', sans-serif;
+                    position: absolute; top: 15px; left: 15px; right: 15px;
+                    display: flex; justify-content: space-between; pointer-events: auto;
                 }
                 .location-badge {
-                    pointer-events: auto; background: rgba(0, 0, 0, 0.6); color: white;
-                    padding: 8px 20px; border-radius: 20px; font-weight: 800; font-size: 18px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.3); backdrop-filter: blur(5px);
-                    border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 10px;
+                    background: rgba(0, 0, 0, 0.6); color: white; padding: 10px 25px;
+                    border-radius: 30px; font-weight: 900; font-size: 20px; backdrop-filter: blur(10px);
+                    border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    display: flex; align-items: center; gap: 10px; text-shadow: 1px 1px 2px #000;
                 }
-                .location-badge::before { content: '📍'; font-size: 20px; }
+                .location-badge::before { content: '📍'; font-size: 24px; }
                 .currency-panel {
-                    pointer-events: auto; background: linear-gradient(135deg, #FFD700, #FFA500);
-                    padding: 8px 20px; border-radius: 20px; color: #fff; font-weight: 800;
-                    display: flex; align-items: center; gap: 10px; font-size: 18px;
-                    box-shadow: 0 4px 15px rgba(255, 165, 0, 0.4);
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.3); transition: transform 0.2s;
+                    background: linear-gradient(135deg, #FFD700, #FF8C00);
+                    padding: 10px 25px; border-radius: 30px; color: #fff; font-weight: 900;
+                    font-size: 20px; box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+                    display: flex; align-items: center; gap: 10px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 }
-                .currency-panel.bump { transform: scale(1.1); }
-                .currency-icon { font-size: 24px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); }
-            </style>
-            <div class="ui-top">
-                <div class="location-badge"><span id="current-location">Загрузка...</span></div>
-                <div class="currency-panel">
-                    <span class="currency-icon">🪙</span>
-                    <span id="currency-amount">0</span>
-                    <span style="font-size: 12px; opacity: 0.8; margin-left: 5px;">Пушистиков</span>
-                </div>
-            </div>
-        `;
-        this.add.dom(512, 0).createFromHTML(html);
-    }
-
-    createBottomBar() {
-        const html = `
-            <style>
-                .ui-bottom {
-                    position: absolute; bottom: 15px; left: 15px; pointer-events: auto;
-                    display: flex; flex-direction: column; gap: 10px; font-family: 'Nunito', sans-serif;
+                .currency-panel.bump { transform: scale(1.15); }
+                
+                /* Меню слева */
+                .ui-menu {
+                    position: absolute; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 12px;
+                    pointer-events: auto;
                 }
                 .menu-btn {
-                    width: 60px; height: 60px; border-radius: 20px; border: none; cursor: pointer;
-                    background: rgba(255, 255, 255, 0.9); box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-                    font-size: 28px; display: flex; justify-content: center; align-items: center;
-                    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    width: 65px; height: 65px; border-radius: 20px; border: 3px solid #fff;
+                    background: rgba(255, 255, 255, 0.9); box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+                    font-size: 32px; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    display: flex; justify-content: center; align-items: center;
                 }
-                .menu-btn:hover { transform: scale(1.1) translateY(-5px); background: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+                .menu-btn:hover { transform: translateY(-5px) scale(1.05); background: #fff; box-shadow: 0 12px 25px rgba(0,0,0,0.3); }
                 .menu-btn:active { transform: scale(0.95); }
+                
+                /* Чат */
+                .ui-chat {
+                    position: absolute; bottom: 20px; left: 105px; width: 400px;
+                    display: flex; flex-direction: column; gap: 10px; pointer-events: auto;
+                }
+                .chat-messages {
+                    height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+                    mask-image: linear-gradient(to bottom, transparent, black 20%);
+                    -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%);
+                    scrollbar-width: none; padding-top: 30px;
+                }
+                .chat-messages::-webkit-scrollbar { display: none; }
+                .chat-msg {
+                    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+                    color: white; padding: 8px 15px; border-radius: 15px; font-size: 15px;
+                    width: fit-content; max-width: 95%; animation: slideInMsg 0.3s ease-out forwards;
+                    border: 1px solid rgba(255,255,255,0.1);
+                }
+                @keyframes slideInMsg { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                .chat-input-wrapper {
+                    display: flex; background: rgba(255, 255, 255, 0.95); border-radius: 25px;
+                    box-shadow: 0 5px 20px rgba(0,0,0,0.2); overflow: hidden;
+                    border: 3px solid transparent; transition: border 0.3s;
+                }
+                .chat-input-wrapper:focus-within { border-color: #4CAF50; }
+                .chat-input {
+                    flex: 1; border: none; padding: 12px 20px; font-family: inherit; font-size: 16px; outline: none;
+                }
+                .chat-send {
+                    background: #4CAF50; color: white; border: none; padding: 0 25px;
+                    font-weight: 900; font-size: 20px; cursor: pointer; transition: background 0.2s;
+                }
+                .chat-send:hover { background: #388E3C; }
+
+                /* Модальные окна */
+                .modal-overlay {
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+                    display: none; justify-content: center; align-items: center; pointer-events: auto;
+                }
+                .modal-overlay.active { display: flex; animation: fadeIn 0.3s; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                .modal-content {
+                    background: #fff; width: 600px; border-radius: 30px; overflow: hidden;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    border: 4px solid #fff;
+                }
+                @keyframes popIn { from { transform: scale(0.8); } to { transform: scale(1); } }
+                .modal-header {
+                    padding: 20px 30px; color: white; font-size: 26px; font-weight: 900;
+                    display: flex; justify-content: space-between; align-items: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+                }
+                .modal-close {
+                    background: rgba(255,255,255,0.3); border: none; color: white; width: 40px; height: 40px;
+                    border-radius: 50%; font-size: 24px; cursor: pointer; transition: all 0.2s;
+                }
+                .modal-close:hover { background: rgba(255,255,255,0.5); transform: rotate(90deg); }
+                .modal-body { padding: 30px; background: #f8f9fa; max-height: 400px; overflow-y: auto; }
+                
+                /* Карта */
+                .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                .map-card {
+                    background: white; border-radius: 20px; padding: 25px; text-align: center;
+                    cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border: 3px solid transparent;
+                    transition: all 0.3s;
+                }
+                .map-card:hover { transform: translateY(-5px); border-color: #4CAF50; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                
+                /* Инвентарь */
+                .inv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+                .inv-slot {
+                    background: #e9ecef; border-radius: 20px; aspect-ratio: 1; display: flex;
+                    justify-content: center; align-items: center; font-size: 40px;
+                    box-shadow: inset 0 3px 8px rgba(0,0,0,0.1); border: 2px solid #dee2e6;
+                }
             </style>
-            <div class="ui-bottom">
+
+            <div class="ui-top">
+                <div class="location-badge" id="current-location">Загрузка...</div>
+                <div class="currency-panel" id="currency-panel">
+                    <span>🪙</span>
+                    <span id="currency-amount">0</span>
+                </div>
+            </div>
+
+            <div class="ui-menu">
                 <button class="menu-btn" id="btn-map" title="Карта">🗺️</button>
                 <button class="menu-btn" id="btn-inv" title="Инвентарь">🎒</button>
                 <button class="menu-btn" id="btn-friends" title="Друзья">👥</button>
                 <button class="menu-btn" id="btn-profile" title="Профиль">⚙️</button>
             </div>
-        `;
-        const dom = this.add.dom(0, 0).createFromHTML(html);
-        
-        dom.getChildByID('btn-map').addEventListener('click', () => this.toggleModal('modal-map'));
-        dom.getChildByID('btn-inv').addEventListener('click', () => this.toggleModal('modal-inv'));
-        dom.getChildByID('btn-friends').addEventListener('click', () => this.toggleModal('modal-friends'));
-        dom.getChildByID('btn-profile').addEventListener('click', () => this.toggleModal('modal-profile'));
-    }
 
-    createChat() {
-        const html = `
-            <style>
-                .chat-container {
-                    position: absolute; bottom: 15px; left: 90px; width: 350px; pointer-events: auto;
-                    font-family: 'Nunito', sans-serif; display: flex; flex-direction: column;
-                }
-                .chat-messages {
-                    height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
-                    margin-bottom: 10px; mask-image: linear-gradient(to bottom, transparent, black 20%);
-                    -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%);
-                    padding-top: 20px; scrollbar-width: none;
-                }
-                .chat-messages::-webkit-scrollbar { display: none; }
-                .chat-msg {
-                    background: rgba(0, 0, 0, 0.5); color: white; padding: 6px 12px; border-radius: 12px;
-                    font-size: 14px; backdrop-filter: blur(5px); width: fit-content; max-width: 90%;
-                    animation: slideInMsg 0.3s ease-out forwards;
-                }
-                @keyframes slideInMsg { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .chat-msg b { color: #FFD700; margin-right: 5px; }
-                .chat-input-wrapper {
-                    display: flex; background: rgba(255, 255, 255, 0.9); border-radius: 20px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden;
-                    border: 2px solid transparent; transition: border 0.3s;
-                }
-                .chat-input-wrapper:focus-within { border-color: #4CAF50; background: #fff; }
-                .chat-input {
-                    flex: 1; border: none; padding: 10px 15px; font-family: 'Nunito', sans-serif;
-                    font-size: 14px; background: transparent; outline: none; color: #333;
-                }
-                .chat-send {
-                    background: #4CAF50; border: none; color: white; padding: 0 15px; cursor: pointer;
-                    font-weight: 800; transition: background 0.2s;
-                }
-                .chat-send:hover { background: #45a049; }
-            </style>
-            <div class="chat-container">
+            <div class="ui-chat">
                 <div class="chat-messages" id="chat-messages"></div>
                 <div class="chat-input-wrapper">
-                    <input type="text" class="chat-input" id="chat-input" placeholder="Написать сообщение..." maxlength="100">
+                    <input type="text" class="chat-input" id="chat-input" placeholder="Написать сообщение..." maxlength="80">
                     <button class="chat-send" id="chat-send">➤</button>
                 </div>
             </div>
-        `;
-        const dom = this.add.dom(0, 0).createFromHTML(html);
-        
-        const input = dom.getChildByID('chat-input');
-        const sendBtn = dom.getChildByID('chat-send');
 
-        const sendMessage = () => {
+            <!-- Модалки -->
+            <div class="modal-overlay" id="modal-map">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #FF9A9E, #FECFEF);">
+                        <span>🗺️ Карта мира</span>
+                        <button class="modal-close" data-close="modal-map">×</button>
+                    </div>
+                    <div class="modal-body"><div class="map-grid" id="map-list"></div></div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="modal-inv">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #2196F3, #1976D2);">
+                        <span>🎒 Инвентарь</span>
+                        <button class="modal-close" data-close="modal-inv">×</button>
+                    </div>
+                    <div class="modal-body"><div class="inv-grid" id="inventory-grid"></div></div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="modal-profile">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #4CAF50, #388E3C);">
+                        <span>⚙️ Профиль</span>
+                        <button class="modal-close" data-close="modal-profile">×</button>
+                    </div>
+                    <div class="modal-body" style="text-align: center;">
+                        <div style="width: 120px; height: 120px; background: #FFD700; border-radius: 50%; margin: 0 auto 20px; display: flex; justify-content: center; align-items: center; font-size: 60px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">🐱</div>
+                        <h2 id="profile-name" style="font-size: 28px; margin-bottom: 5px;">Загрузка...</h2>
+                        <p style="color: #666; font-size: 18px; margin-bottom: 30px;">Уровень 1 • Исследователь</p>
+                        <button id="btn-logout" style="width: 100%; padding: 15px; background: #F44336; color: white; border: none; border-radius: 15px; font-size: 18px; font-weight: 900; cursor: pointer; transition: background 0.2s;">Выйти из аккаунта</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="modal-friends">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #9C27B0, #7B1FA2);">
+                        <span>👥 Друзья</span>
+                        <button class="modal-close" data-close="modal-friends">×</button>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 50px; color: #666;">
+                        <div style="font-size: 60px; margin-bottom: 20px;">👻</div>
+                        <h3>Пока пусто</h3>
+                        <p>Добавляйте друзей по никнейму, чтобы играть вместе!</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    bindEvents() {
+        const username = localStorage.getItem('katiki_username') || 'Гость';
+        document.getElementById('profile-name').innerText = username;
+
+        // Кнопки меню
+        document.getElementById('btn-map').onclick = () => this.toggleModal('modal-map');
+        document.getElementById('btn-inv').onclick = () => this.toggleModal('modal-inv');
+        document.getElementById('btn-friends').onclick = () => this.toggleModal('modal-friends');
+        document.getElementById('btn-profile').onclick = () => this.toggleModal('modal-profile');
+        
+        // Закрытие модалок
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.onclick = (e) => {
+                const modalId = e.target.getAttribute('data-close');
+                document.getElementById(modalId).classList.remove('active');
+            };
+        });
+
+        // Выход
+        document.getElementById('btn-logout').onclick = () => {
+            localStorage.clear();
+            window.location.reload();
+        };
+
+        // Чат
+        const input = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('chat-send');
+        const sendMsg = () => {
             const text = input.value.trim();
             if (text) {
                 this.game.events.emit('sendChatMessage', text);
                 input.value = '';
             }
         };
+        sendBtn.onclick = sendMsg;
+        input.onkeypress = (e) => { if (e.key === 'Enter') sendMsg(); };
 
-        sendBtn.addEventListener('click', sendMessage);
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
+        // Слушатели событий от MainScene
+        this.game.events.on('updateCurrency', (val) => {
+            const panel = document.getElementById('currency-panel');
+            document.getElementById('currency-amount').innerText = val;
+            panel.classList.add('bump');
+            setTimeout(() => panel.classList.remove('bump'), 300);
         });
-    }
 
-    addChatMessage(name, text, color = '#FFD700') {
-        const container = document.getElementById('chat-messages');
-        if (!container) return;
-        
-        const msg = document.createElement('div');
-        msg.className = 'chat-msg';
-        msg.innerHTML = `<b style="color: ${color}">${name}:</b> ${text}`;
-        container.appendChild(msg);
-        container.scrollTop = container.scrollHeight;
-        
-        if (container.children.length > 50) {
-            container.removeChild(container.firstChild);
-        }
-    }
-
-    createModals() {
-        const html = `
-            <style>
-                .modal-overlay {
-                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
-                    display: none; justify-content: center; align-items: center; pointer-events: auto;
-                    z-index: 1000; font-family: 'Nunito', sans-serif;
-                }
-                .modal-overlay.active { display: flex; animation: fadeIn 0.3s forwards; }
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                .modal-content {
-                    background: linear-gradient(135deg, #ffffff, #f0f0f0); width: 600px; height: 400px;
-                    border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-                    display: flex; flex-direction: column; overflow: hidden;
-                    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-                    border: 4px solid #fff;
-                }
-                @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-                .modal-header {
-                    padding: 20px; background: #FF9A9E; color: white; font-size: 24px;
-                    font-weight: 800; display: flex; justify-content: space-between; align-items: center;
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-                }
-                .modal-close {
-                    background: rgba(255,255,255,0.3); border: none; color: white; width: 35px; height: 35px;
-                    border-radius: 50%; font-size: 20px; cursor: pointer; transition: all 0.2s;
-                }
-                .modal-close:hover { background: rgba(255,255,255,0.5); transform: rotate(90deg); }
-                .modal-body { flex: 1; padding: 20px; overflow-y: auto; }
-                .map-locations { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-                .map-card {
-                    background: white; border-radius: 20px; padding: 20px; text-align: center;
-                    cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                    border: 2px solid transparent;
-                }
-                .map-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); border-color: #4CAF50; }
-                .map-card h3 { margin: 0 0 10px 0; color: #333; }
-                .map-card p { margin: 0; color: #666; font-size: 12px; }
-                
-                .inventory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-                .inv-slot {
-                    aspect-ratio: 1; background: #e0e0e0; border-radius: 15px;
-                    display: flex; justify-content: center; align-items: center;
-                    font-size: 30px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
-                }
-                .inv-slot.empty { opacity: 0.5; color: #aaa; font-size: 24px; }
-
-                .profile-info { display: flex; gap: 20px; align-items: center; }
-                .profile-avatar { width: 100px; height: 100px; background: #FFD700; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 50px; }
-                .profile-details h2 { margin: 0 0 10px 0; }
-                .profile-details p { margin: 5px 0; color: #666; }
-            </style>
-
-            <div class="modal-overlay" id="modal-map">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <span>🗺️ Карта мира</span>
-                        <button class="modal-close" data-close="modal-map">×</button>
-                    </div>
-                    <div class="modal-body"><div class="map-locations" id="map-list"></div></div>
-                </div>
-            </div>
-
-            <div class="modal-overlay" id="modal-inv">
-                <div class="modal-content">
-                    <div class="modal-header" style="background: #2196F3;">
-                        <span>🎒 Инвентарь</span>
-                        <button class="modal-close" data-close="modal-inv">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="inventory-grid" id="inventory-grid">
-                            <!-- Заполняется динамически -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="modal-overlay" id="modal-profile">
-                <div class="modal-content">
-                    <div class="modal-header" style="background: #4CAF50;">
-                        <span>⚙️ Профиль</span>
-                        <button class="modal-close" data-close="modal-profile">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="profile-info">
-                            <div class="profile-avatar">🐱</div>
-                            <div class="profile-details">
-                                <h2 id="profile-name">Загрузка...</h2>
-                                <p>Уровень: 1</p>
-                                <p>Статус: Исследователь</p>
-                            </div>
-                        </div>
-                        <div style="margin-top: 20px;">
-                            <button style="width: 100%; padding: 15px; background: #F44336; color: white; border: none; border-radius: 15px; font-weight: 800; cursor: pointer;" onclick="localStorage.removeItem('katiki_username'); window.location.reload();">Выйти из аккаунта</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="modal-overlay" id="modal-friends">
-                <div class="modal-content">
-                    <div class="modal-header" style="background: #9C27B0;">
-                        <span>👥 Друзья</span>
-                        <button class="modal-close" data-close="modal-friends">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <p style="text-align: center; color: #666;">Список друзей пока пуст. Добавляйте других игроков!</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        this.add.dom(0, 0).createFromHTML(html);
-
-        document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const modalId = e.target.getAttribute('data-close');
-                document.getElementById(modalId).classList.remove('active');
+        this.game.events.on('updateInventory', (items) => {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            items.forEach(item => {
+                grid.innerHTML += `<div class="inv-slot">${item}</div>`;
             });
+            for (let i = items.length; i < 8; i++) {
+                grid.innerHTML += `<div class="inv-slot" style="opacity: 0.4; font-size: 24px;">+</div>`;
+            }
         });
 
-        const username = localStorage.getItem('katiki_username') || 'Гость';
-        document.getElementById('profile-name').innerText = username;
+        this.game.events.on('newChatMessage', (data) => {
+            const container = document.getElementById('chat-messages');
+            const msg = document.createElement('div');
+            msg.className = 'chat-msg';
+            msg.innerHTML = `<b style="color: ${data.color}">${data.name}:</b> ${data.text}`;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+            if (container.children.length > 50) container.removeChild(container.firstChild);
+        });
+
+        this.game.events.on('updateLocationName', (name) => {
+            document.getElementById('current-location').innerText = name;
+        });
 
         this.game.events.on('initMap', (locations, currentLoc) => {
             const list = document.getElementById('map-list');
@@ -330,23 +290,20 @@ export default class UIScene extends Phaser.Scene {
                 if (loc.id === currentLoc) return;
                 const card = document.createElement('div');
                 card.className = 'map-card';
-                card.innerHTML = `<h3>${loc.name}</h3><p>${loc.desc}</p>`;
-                card.addEventListener('click', () => {
+                card.innerHTML = `<h3 style="margin: 0 0 10px 0; color: #333;">${loc.name}</h3><p style="margin: 0; color: #666; font-size: 14px;">${loc.desc}</p>`;
+                card.onclick = () => {
                     this.game.events.emit('teleportTo', loc.id);
                     this.toggleModal('modal-map');
-                });
+                };
                 list.appendChild(card);
             });
         });
     }
 
     toggleModal(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            document.querySelectorAll('.modal-overlay').forEach(m => {
-                if (m.id !== id) m.classList.remove('active');
-            });
-            modal.classList.toggle('active');
-        }
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            if (m.id !== id) m.classList.remove('active');
+        });
+        document.getElementById(id).classList.toggle('active');
     }
 }

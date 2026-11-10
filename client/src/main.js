@@ -8,17 +8,14 @@ const config = {
     width: 1024,
     height: 768,
     parent: 'game-container',
-    backgroundColor: '#1a1a2e',
-    scene: [MainScene, UIScene],
+    backgroundColor: '#87CEEB',
+    scene: [MainScene, UIScene], // UIScene запускается поверх MainScene
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
     dom: {
         createContainer: true
-    },
-    input: {
-        activePointers: 1
     },
     render: {
         antialias: true,

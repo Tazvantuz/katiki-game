@@ -14,6 +14,9 @@ const config = {
     },
     dom: {
         createContainer: true // Включаем поддержку HTML-элементов
+    },
+    input: {
+        activePointers: 1 // Явно указываем 1 активный указатель (мышь)
     }
 };
 

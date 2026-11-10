@@ -101,7 +101,6 @@ export class GameRoom {
     const url = new URL(request.url);
     const username = url.searchParams.get('username') || 'Гость';
 
-    // ПРОВЕРКА: Если такой ник уже играет - отклоняем
     for (let p of this.sessions.values()) {
         if (p.name === username) {
             server.send(JSON.stringify({ type: 'error', message: 'Этот аккаунт уже в сети (запущен в другой вкладке)!' }));
@@ -143,11 +142,15 @@ export class GameRoom {
           player.x = 512;
           player.y = 450;
           
+          // Отправляем игроку список тех, кто уже в этой локации
+          const playersInRoom = Array.from(this.sessions.values()).filter(p => p.location === player.location && p.id !== playerId);
+          server.send(JSON.stringify({ type: 'room_players', players: playersInRoom }));
+
           this.broadcast({ 
             type: 'player_moved', 
             id: playerId, 
             x: player.x, y: player.y, angle: player.angle, location: player.location 
-          });
+          }, server);
         }
         else if (data.type === 'chat') {
           const colors = ['#FFD700', '#00BFFF', '#FF69B4', '#32CD32', '#FFA500'];

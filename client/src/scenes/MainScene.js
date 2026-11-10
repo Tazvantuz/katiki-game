@@ -13,12 +13,11 @@ export default class MainScene extends Phaser.Scene {
         this.targetX = null;
         this.targetY = null;
         this.isLoggedIn = false;
-        this.currentDir = 'down';
         this.currentLocation = 'square';
         
         this.userData = { fluffies: 100, inventory: ["🍎", "🍣"] };
         this.obstacles = [];
-        this.worldObjects = []; // Массив для очистки локаций
+        this.worldObjects = [];
         
         this.mapSize = 20;
         this.tileWidth = 64;
@@ -40,7 +39,6 @@ export default class MainScene extends Phaser.Scene {
     }
 
     create() {
-        // Используем sessionStorage для проверки активной сессии (чтобы вторая вкладка требовала логин)
         if (sessionStorage.getItem('katiki_active_session')) {
             this.userData.fluffies = parseInt(localStorage.getItem('katiki_fluffies') || '100');
             this.userData.inventory = JSON.parse(localStorage.getItem('katiki_inventory') || '["🍎", "🍣"]');
@@ -76,69 +74,149 @@ export default class MainScene extends Phaser.Scene {
     generateTextures() {
         const TW = this.tileWidth, TH = this.tileHeight;
 
-        // --- 1. КАТИК ---
-        const colors = { body: '#F5A623', belly: '#FFFFFF', ears: '#E88A1A', eyes: '#222222', blush: '#FFB6C1', outline: '#B8731A' };
-        const drawKatik = (key, dir) => {
+        // --- 1. ДЕТАЛИЗИРОВАННЫЙ КАТИК С АНИМАЦИЕЙ ---
+        const drawKatik = (dir, frame) => {
+            const key = `katik_${dir}_${frame}`;
             const canvas = this.textures.createCanvas(key, 64, 64);
             const ctx = canvas.context;
             const cx = 32, cy = 32;
             
+            let offset = 0;
+            if (frame === 1) offset = 4;
+            if (frame === 3) offset = -4;
+            
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath(); ctx.ellipse(cx, cy + 20, 16, 8, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(cx, cy + 22, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
             
-            ctx.fillStyle = colors.body;
-            ctx.strokeStyle = colors.outline;
+            ctx.strokeStyle = '#B8731A';
             ctx.lineWidth = 1.5;
+
+            if (dir === 'down') {
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx - 8, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 8, cy + 18 - offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.ellipse(cx, cy + 16, 8, 16, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.ellipse(cx, cy + 10, 14, 12, 0, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx - 20, cy + 8 - offset, 6, 12, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 20, cy + 8 + offset, 6, 12, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.arc(cx, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.moveTo(cx - 16, cy - 24); ctx.lineTo(cx - 4, cy - 36); ctx.lineTo(cx + 2, cy - 20); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + 16, cy - 24); ctx.lineTo(cx + 4, cy - 36); ctx.lineTo(cx - 2, cy - 20); ctx.fill(); ctx.stroke();
+                
+                ctx.fillStyle = '#FFB6C1';
+                ctx.beginPath(); ctx.moveTo(cx - 12, cy - 24); ctx.lineTo(cx - 6, cy - 31); ctx.lineTo(cx - 2, cy - 22); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx + 12, cy - 24); ctx.lineTo(cx + 6, cy - 31); ctx.lineTo(cx + 2, cy - 22); ctx.fill();
+
+                ctx.fillStyle = '#222222';
+                ctx.beginPath(); ctx.arc(cx - 8, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(cx + 8, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.arc(cx - 9, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(cx + 7, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
+                
+                ctx.fillStyle = '#FF8A8A';
+                ctx.beginPath(); ctx.moveTo(cx - 2, cy - 4); ctx.lineTo(cx + 2, cy - 4); ctx.lineTo(cx, cy - 1); ctx.fill();
+                
+                ctx.fillStyle = '#FFB6C1';
+                ctx.beginPath(); ctx.ellipse(cx - 14, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(cx + 14, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+            } 
+            else if (dir === 'up') {
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx - 8, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 8, cy + 18 - offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.ellipse(cx, cy + 12, 8, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx - 20, cy + 8 - offset, 6, 12, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 20, cy + 8 + offset, 6, 12, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.arc(cx, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.moveTo(cx - 16, cy - 24); ctx.lineTo(cx - 4, cy - 36); ctx.lineTo(cx + 2, cy - 20); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + 16, cy - 24); ctx.lineTo(cx + 4, cy - 36); ctx.lineTo(cx - 2, cy - 20); ctx.fill(); ctx.stroke();
+            }
+            else if (dir === 'left') {
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx + 6, cy + 18, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx - 6, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.ellipse(cx + 18, cy + 8, 16, 8, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx - 12, cy + 8 + offset, 6, 12, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.arc(cx - 6, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.moveTo(cx - 10, cy - 24); ctx.lineTo(cx + 4, cy - 36); ctx.lineTo(cx + 8, cy - 20); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#222222';
+                ctx.beginPath(); ctx.arc(cx - 14, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.arc(cx - 15, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
+                
+                ctx.fillStyle = '#FF8A8A';
+                ctx.beginPath(); ctx.arc(cx - 26, cy - 4, 3, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = '#FFB6C1';
+                ctx.beginPath(); ctx.ellipse(cx - 18, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+            }
+            else if (dir === 'right') {
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx - 6, cy + 18, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 6, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.ellipse(cx - 18, cy + 8, 16, 8, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.ellipse(cx + 12, cy + 8 + offset, 6, 12, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#F5A623';
+                ctx.beginPath(); ctx.arc(cx + 6, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#E88A1A';
+                ctx.beginPath(); ctx.moveTo(cx + 10, cy - 24); ctx.lineTo(cx - 4, cy - 36); ctx.lineTo(cx - 8, cy - 20); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#222222';
+                ctx.beginPath(); ctx.arc(cx + 14, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.arc(cx + 15, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
+                
+                ctx.fillStyle = '#FF8A8A';
+                ctx.beginPath(); ctx.arc(cx + 26, cy - 4, 3, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = '#FFB6C1';
+                ctx.beginPath(); ctx.ellipse(cx + 18, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+            }
             
-            ctx.beginPath();
-            if (dir === 'left') ctx.ellipse(cx + 12, cy + 5, 12, 6, Math.PI / 4, 0, Math.PI * 2);
-            else if (dir === 'right') ctx.ellipse(cx - 12, cy + 5, 12, 6, -Math.PI / 4, 0, Math.PI * 2);
-            else ctx.ellipse(cx, cy + 10, 6, 12, 0, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
-
-            ctx.beginPath(); ctx.ellipse(cx, cy + 8, 16, 14, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            if (dir !== 'up') {
-                ctx.fillStyle = colors.belly;
-                ctx.beginPath(); ctx.ellipse(cx, cy + 12, 10, 8, 0, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.fillStyle = colors.body;
-            ctx.beginPath(); ctx.arc(cx, cy - 6, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-            ctx.fillStyle = colors.ears;
-            if (dir === 'down' || dir === 'up') {
-                ctx.beginPath(); ctx.moveTo(cx - 14, cy - 18); ctx.lineTo(cx - 4, cy - 24); ctx.lineTo(cx - 6, cy - 10); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(cx + 14, cy - 18); ctx.lineTo(cx + 4, cy - 24); ctx.lineTo(cx + 6, cy - 10); ctx.fill(); ctx.stroke();
-            } else if (dir === 'left') {
-                ctx.beginPath(); ctx.moveTo(cx - 2, cy - 20); ctx.lineTo(cx - 12, cy - 22); ctx.lineTo(cx - 8, cy - 10); ctx.fill(); ctx.stroke();
-            } else if (dir === 'right') {
-                ctx.beginPath(); ctx.moveTo(cx + 2, cy - 20); ctx.lineTo(cx + 12, cy - 22); ctx.lineTo(cx + 8, cy - 10); ctx.fill(); ctx.stroke();
-            }
-
-            if (dir === 'down' || dir === 'left' || dir === 'right') {
-                ctx.fillStyle = colors.eyes;
-                const eyeX = dir === 'left' ? -8 : (dir === 'right' ? 8 : 0);
-                if (dir === 'down') {
-                    ctx.beginPath(); ctx.arc(cx - 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(cx + 7, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#FFF';
-                    ctx.beginPath(); ctx.arc(cx - 8, cy - 7, 1.5, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(cx + 6, cy - 7, 1.5, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = colors.blush;
-                    ctx.beginPath(); ctx.ellipse(cx - 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-                    ctx.beginPath(); ctx.ellipse(cx + 11, cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#FF8A8A';
-                    ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.lineTo(cx - 2, cy); ctx.lineTo(cx + 2, cy); ctx.fill();
-                } else {
-                    ctx.beginPath(); ctx.arc(cx + eyeX, cy - 6, 3, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#FFF';
-                    ctx.beginPath(); ctx.arc(cx + eyeX + (dir === 'left' ? -1.5 : 1.5), cy - 7, 1.5, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = colors.blush;
-                    ctx.beginPath(); ctx.ellipse(cx + eyeX + (dir === 'left' ? -4 : 4), cy - 2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-                }
-            }
             canvas.refresh();
         };
-        ['down', 'up', 'left', 'right'].forEach(d => drawKatik('katik_' + d, d));
+
+        ['down', 'up', 'left', 'right'].forEach(dir => {
+            [0, 1, 2, 3].forEach(frame => drawKatik(dir, frame));
+        });
 
         // --- 2. ДОМ ---
         const hCanvas = this.textures.createCanvas('house', 200, 220);
@@ -259,7 +337,6 @@ export default class MainScene extends Phaser.Scene {
         if (this.arrowsGroup) this.arrowsGroup.clear(true, true);
         if (this.emitters) this.emitters.forEach(e => e.destroy());
         
-        // ОЧИСТКА СТАРЫХ ОБЪЕКТОВ ЛОКАЦИИ (исправляет наложение)
         if (this.worldObjects) {
             this.worldObjects.forEach(obj => obj.destroy());
             this.worldObjects = [];
@@ -394,7 +471,7 @@ export default class MainScene extends Phaser.Scene {
         obj.setOrigin(0.5, 0.9);
         obj.setDepth(y);
         this.obstacles.push({ x, y, r: radius });
-        this.worldObjects.push(obj); // Добавляем в массив для очистки
+        this.worldObjects.push(obj);
         return obj;
     }
 
@@ -438,7 +515,6 @@ export default class MainScene extends Phaser.Scene {
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
-            // ОБРАБОТКА ОШИБКИ ДУБЛИКАТА СЕРВЕРА
             if (data.type === 'error') {
                 alert(data.message);
                 sessionStorage.clear();
@@ -469,6 +545,8 @@ export default class MainScene extends Phaser.Scene {
                 if (p) {
                     if (data.location === this.currentLocation) {
                         p.setVisible(true);
+                        p.isMoving = true; // Включаем анимацию
+                        p.moveTimer = 200; // Таймер для остановки анимации
                         this.tweens.add({ targets: p, x: data.x, y: data.y, duration: 100 });
                         this.updatePlayerDirection(p, data.angle);
                     } else {
@@ -483,14 +561,27 @@ export default class MainScene extends Phaser.Scene {
             else if (data.type === 'chat') {
                 this.game.events.emit('newChatMessage', { name: data.name, text: data.text, color: data.color });
             }
+            else if (data.type === 'room_players') {
+                data.players.forEach(p => {
+                    if (!this.otherPlayers[p.id]) {
+                        this.createPlayer(p.id, p.x, p.y, p.name, p.angle);
+                    }
+                });
+            }
         };
     }
 
     createPlayer(id, x, y, name, angle = 0) {
         const container = this.add.container(x, y);
-        const sprite = this.add.sprite(0, 0, 'katik_down').setOrigin(0.5, 0.8);
+        // Создаем спрайт с дефолтной текстурой 0-го кадра
+        const sprite = this.add.sprite(0, 0, 'katik_down_0').setOrigin(0.5, 0.8);
         container.sprite = sprite;
-        
+        container.dir = 'down';
+        container.animFrame = 0;
+        container.animTimer = 0;
+        container.isMoving = false;
+        container.moveTimer = 0;
+
         const text = this.add.text(0, -45, name, { fontSize: '14px', fontFamily: 'Nunito', fill: '#ffffff', backgroundColor: '#00000088', padding: { x: 6, y: 3 }, borderRadius: 8 }).setOrigin(0.5);
 
         container.add([sprite, text]);
@@ -511,10 +602,7 @@ export default class MainScene extends Phaser.Scene {
         else if (angle > -3*Math.PI/4 && angle <= -Math.PI/4) dir = 'up';
         else dir = 'left';
 
-        if (container.currentDir !== dir) {
-            container.currentDir = dir;
-            container.sprite.setTexture(`katik_${dir}`);
-        }
+        container.dir = dir;
     }
 
     changeLocation(locId) {
@@ -539,6 +627,32 @@ export default class MainScene extends Phaser.Scene {
     }
 
     update(time, delta) {
+        // Обновление анимаций всех игроков
+        const updateAnimation = (container) => {
+            if (!container.sprite) return;
+            
+            if (container.isMoving) {
+                container.animTimer += delta;
+                if (container.animTimer > 150) {
+                    container.animFrame = (container.animFrame + 1) % 4;
+                    container.animTimer = 0;
+                }
+                if (container.moveTimer > 0) {
+                    container.moveTimer -= delta;
+                    if (container.moveTimer <= 0) container.isMoving = false;
+                }
+            } else {
+                container.animFrame = 0;
+            }
+            
+            const tex = `katik_${container.dir}_${container.animFrame}`;
+            if (container.sprite.texture.key !== tex) {
+                container.sprite.setTexture(tex);
+            }
+        };
+
+        Object.values(this.otherPlayers).forEach(p => updateAnimation(p));
+
         if (!this.myPlayer || !this.isLoggedIn) return;
 
         const pointer = this.input.activePointer;
@@ -546,6 +660,7 @@ export default class MainScene extends Phaser.Scene {
         this.updatePlayerDirection(this.myPlayer, angleToCursor);
 
         if (this.targetX !== null && this.targetY !== null) {
+            this.myPlayer.isMoving = true;
             const dx = this.targetX - this.myPlayer.x;
             const dy = this.targetY - this.myPlayer.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -555,7 +670,7 @@ export default class MainScene extends Phaser.Scene {
                 this.myPlayer.y = this.targetY;
                 this.targetX = null;
                 this.targetY = null;
-                this.myPlayer.sprite.y = 0;
+                this.myPlayer.isMoving = false;
                 
                 if (this.arrowsGroup) {
                     this.arrowsGroup.getChildren().forEach(arrow => {
@@ -587,12 +702,11 @@ export default class MainScene extends Phaser.Scene {
                 if (canMove) {
                     this.myPlayer.x = Phaser.Math.Clamp(nextX, this.bounds.x + 20, this.bounds.x + this.bounds.w - 20);
                     this.myPlayer.y = Phaser.Math.Clamp(nextY, this.bounds.y + 20, this.bounds.y + this.bounds.h - 20);
-                    
-                    this.myPlayer.sprite.y = Math.abs(Math.sin(time * 0.015)) * -5;
                     this.myPlayer.setDepth(this.myPlayer.y);
                 } else {
                     this.targetX = null;
                     this.targetY = null;
+                    this.myPlayer.isMoving = false;
                 }
 
                 if (time - this.lastSendTime > 50) {
@@ -604,7 +718,11 @@ export default class MainScene extends Phaser.Scene {
                     this.lastSendTime = time;
                 }
             }
+        } else {
+            this.myPlayer.isMoving = false;
         }
+
+        updateAnimation(this.myPlayer);
     }
 
     showAuthForm() {
@@ -718,12 +836,10 @@ export default class MainScene extends Phaser.Scene {
                 if (data.success) {
                     showToast('Успешный вход!', 'success');
                     setTimeout(() => {
-                        // Сохраняем данные в localStorage (для БД)
                         localStorage.setItem('katiki_username', data.username);
                         localStorage.setItem('katiki_fluffies', data.fluffies);
                         localStorage.setItem('katiki_inventory', JSON.stringify(data.inventory));
                         
-                        // Сохраняем в sessionStorage (для активной сессии этой вкладки)
                         sessionStorage.setItem('katiki_username', data.username);
                         sessionStorage.setItem('katiki_active_session', 'true');
 

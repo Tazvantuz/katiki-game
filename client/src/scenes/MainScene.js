@@ -17,7 +17,6 @@ export default class MainScene extends Phaser.Scene {
     preload() {}
 
     create() {
-        // Если уже входили ранее, сразу запускаем игру
         if (localStorage.getItem('katiki_username')) {
             this.startGame();
         } else {
@@ -26,61 +25,285 @@ export default class MainScene extends Phaser.Scene {
     }
 
     showAuthForm() {
+        // Огромный HTML-код с красивым дизайном и CSS-анимациями
         const formHtml = `
-            <form style="display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; color: white; font-family: Arial; width: 300px;">
-                <h2 style="margin: 0; text-align: center;">Вход в Катики</h2>
-                <input type="text" name="username" placeholder="Логин" style="padding: 10px; border-radius: 5px; border: none;">
-                <input type="password" name="password" placeholder="Пароль" style="padding: 10px; border-radius: 5px; border: none;">
-                <div style="display: flex; gap: 10px;">
-                    <button name="loginBtn" type="button" style="padding: 10px; flex: 1; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Войти</button>
-                    <button name="registerBtn" type="button" style="padding: 10px; flex: 1; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">Регистрация</button>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap');
+                
+                .auth-container {
+                    display: flex;
+                    width: 800px;
+                    height: 480px;
+                    background: rgba(255, 255, 255, 0.95);
+                    border-radius: 30px;
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.3), inset 0 0 0 4px rgba(255,255,255,0.5);
+                    overflow: hidden;
+                    font-family: 'Nunito', sans-serif;
+                    backdrop-filter: blur(10px);
+                    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+                }
+
+                @keyframes popIn {
+                    0% { transform: scale(0.8); opacity: 0; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+
+                .auth-left {
+                    flex: 1;
+                    padding: 40px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    background: #ffffff;
+                }
+
+                .auth-right {
+                    flex: 1;
+                    background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
+                    padding: 40px;
+                    display: flex;
+                    flex-direction: column;
+                    color: #333;
+                    position: relative;
+                }
+
+                .auth-title {
+                    font-size: 32px;
+                    font-weight: 800;
+                    color: #333;
+                    margin-bottom: 30px;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                }
+
+                .auth-input {
+                    width: 100%;
+                    padding: 15px 20px;
+                    margin-bottom: 20px;
+                    border: 2px solid #E0E0E0;
+                    border-radius: 15px;
+                    font-size: 16px;
+                    font-family: 'Nunito', sans-serif;
+                    transition: all 0.3s ease;
+                    box-sizing: border-box;
+                    outline: none;
+                }
+
+                .auth-input:focus {
+                    border-color: #4CAF50;
+                    box-shadow: 0 0 10px rgba(76, 175, 80, 0.2);
+                }
+
+                .auth-buttons {
+                    display: flex;
+                    gap: 15px;
+                    margin-top: 10px;
+                }
+
+                .auth-btn {
+                    flex: 1;
+                    padding: 15px;
+                    border: none;
+                    border-radius: 15px;
+                    font-size: 18px;
+                    font-weight: 800;
+                    color: white;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    font-family: 'Nunito', sans-serif;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                }
+
+                .auth-btn:hover {
+                    transform: translateY(-3px) scale(1.02);
+                }
+
+                .auth-btn:active {
+                    transform: translateY(1px);
+                }
+
+                .btn-login {
+                    background: linear-gradient(135deg, #4CAF50, #45a049);
+                }
+
+                .btn-register {
+                    background: linear-gradient(135deg, #2196F3, #1976D2);
+                }
+
+                .news-title {
+                    font-size: 28px;
+                    font-weight: 800;
+                    margin-bottom: 20px;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+                }
+
+                .news-item {
+                    background: rgba(255,255,255,0.7);
+                    padding: 15px;
+                    border-radius: 15px;
+                    margin-bottom: 15px;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+                    font-size: 14px;
+                }
+
+                .news-item b {
+                    display: block;
+                    font-size: 16px;
+                    margin-bottom: 5px;
+                    color: #D81B60;
+                }
+
+                /* Стили для кастомных уведомлений (Toast) */
+                .toast-container {
+                    position: absolute;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    z-index: 9999;
+                }
+
+                .toast {
+                    padding: 15px 30px;
+                    border-radius: 15px;
+                    color: white;
+                    font-weight: 800;
+                    font-size: 16px;
+                    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+                    opacity: 0;
+                    transform: translateY(-20px);
+                    animation: slideDown 0.3s forwards, fadeOut 0.3s 2.7s forwards;
+                    text-align: center;
+                    min-width: 250px;
+                }
+
+                .toast.success { background: linear-gradient(135deg, #4CAF50, #45a049); }
+                .toast.error { background: linear-gradient(135deg, #F44336, #D32F2F); }
+
+                @keyframes slideDown {
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                @keyframes fadeOut {
+                    to { opacity: 0; transform: translateY(-20px); }
+                }
+            </style>
+
+            <div class="toast-container" id="toast-box"></div>
+
+            <div class="auth-container">
+                <div class="auth-left">
+                    <div class="auth-title">Вход в Катики</div>
+                    <input type="text" id="username" class="auth-input" placeholder="Твой логин">
+                    <input type="password" id="password" class="auth-input" placeholder="Твой пароль">
+                    <div class="auth-buttons">
+                        <button id="loginBtn" class="auth-btn btn-login">Войти</button>
+                        <button id="registerBtn" class="auth-btn btn-register">Регистрация</button>
+                    </div>
                 </div>
-            </form>
+                <div class="auth-right">
+                    <div class="news-title">📢 Новости</div>
+                    <div class="news-item">
+                        <b>Добро пожаловать!</b>
+                        Мы рады видеть тебя в мире Катиков. Создай своего персонажа и исследуй город!
+                    </div>
+                    <div class="news-item">
+                        <b>Скоро обновление!</b>
+                        Совсем скоро мы добавим новые домики, магазины и мини-игры. Следи за новостями!
+                    </div>
+                </div>
+            </div>
         `;
 
         const form = this.add.dom(512, 384).createFromHTML(formHtml);
-        
-        form.addListener('click');
-        form.on('click', async (event) => {
-            if (event.target.name === 'registerBtn') {
-                const username = form.getChildByName('username').value;
-                const password = form.getChildByName('password').value;
-                if (!username || !password) {
-                    alert('Введите логин и пароль');
-                    return;
-                }
+
+        // Функция для показа красивых уведомлений
+        const showToast = (message, type = 'success') => {
+            const toastBox = form.getChildByID('toast-box');
+            if (!toastBox) return;
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerText = message;
+            toastBox.appendChild(toast);
+            // Удаляем элемент из DOM после завершения анимации
+            setTimeout(() => toast.remove(), 3000);
+        };
+
+        const loginBtn = form.getChildByID('loginBtn');
+        const registerBtn = form.getChildByID('registerBtn');
+
+        registerBtn.addEventListener('click', async () => {
+            const username = form.getChildByID('username').value;
+            const password = form.getChildByID('password').value;
+            
+            if (!username || !password) {
+                showToast('Заполни все поля!', 'error');
+                return;
+            }
+
+            registerBtn.innerText = 'Загрузка...';
+            registerBtn.disabled = true;
+
+            try {
                 const res = await fetch('https://katiki-game.katiland.workers.dev/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
+                
                 if (data.success) {
-                    alert('Регистрация успешна! Теперь войдите.');
+                    showToast('Успешно! Теперь войди.', 'success');
+                    form.getChildByID('password').value = '';
                 } else {
-                    alert(data.error);
+                    showToast(data.error, 'error');
                 }
+            } catch (e) {
+                showToast('Ошибка сети', 'error');
+            } finally {
+                registerBtn.innerText = 'Регистрация';
+                registerBtn.disabled = false;
             }
-            if (event.target.name === 'loginBtn') {
-                const username = form.getChildByName('username').value;
-                const password = form.getChildByName('password').value;
-                if (!username || !password) {
-                    alert('Введите логин и пароль');
-                    return;
-                }
+        });
+
+        loginBtn.addEventListener('click', async () => {
+            const username = form.getChildByID('username').value;
+            const password = form.getChildByID('password').value;
+            
+            if (!username || !password) {
+                showToast('Заполни все поля!', 'error');
+                return;
+            }
+
+            loginBtn.innerText = 'Загрузка...';
+            loginBtn.disabled = true;
+
+            try {
                 const res = await fetch('https://katiki-game.katiland.workers.dev/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
+                
                 if (data.success) {
-                    localStorage.setItem('katiki_username', data.username);
-                    form.destroy();
-                    this.startGame();
+                    showToast('Успешный вход!', 'success');
+                    setTimeout(() => {
+                        localStorage.setItem('katiki_username', data.username);
+                        form.destroy();
+                        this.startGame();
+                    }, 1000); // Небольшая задержка, чтобы игрок увидел зеленое уведомление
                 } else {
-                    alert(data.error);
+                    showToast(data.error, 'error');
                 }
+            } catch (e) {
+                showToast('Ошибка сети', 'error');
+            } finally {
+                loginBtn.innerText = 'Войти';
+                loginBtn.disabled = false;
             }
         });
     }
@@ -89,7 +312,6 @@ export default class MainScene extends Phaser.Scene {
         if (this.isLoggedIn) return;
         this.isLoggedIn = true;
         
-        // Удаляем все DOM-элементы (форму), если они есть
         this.children.list.filter(child => child.type === 'DOMElement').forEach(el => el.destroy());
 
         this.drawIsometricGrid();
@@ -159,7 +381,7 @@ export default class MainScene extends Phaser.Scene {
 
             if (data.type === 'init') {
                 this.myId = data.id;
-                this.createPlayer(this.myId, 512, 384, 0x0000FF, username); // Используем логин как имя
+                this.createPlayer(this.myId, 512, 384, 0x0000FF, username);
 
                 data.players.forEach(p => {
                     this.createPlayer(p.id, p.x, p.y, 0xFF0000, 'Игрок', p.angle);

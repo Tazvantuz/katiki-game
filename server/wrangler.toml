@@ -1,0 +1,12 @@
+name = "katiki-server"
+main = "src/index.js"
+compatibility_date = "2023-10-01"
+
+# Настройки Durable Objects для игровых комнат
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameRoom"]

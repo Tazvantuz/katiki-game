@@ -31,25 +31,17 @@ export default {
       try {
         const { username, password } = await request.json();
         if (!username || !password) {
-          return new Response(JSON.stringify({ error: 'Введите логин и пароль' }), { 
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          });
+          return new Response(JSON.stringify({ error: 'Введите логин и пароль' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         const hash = await hashPassword(password);
         const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
         if (existing) {
-          return new Response(JSON.stringify({ error: 'Пользователь уже существует' }), { 
-            status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          });
+          return new Response(JSON.stringify({ error: 'Пользователь уже существует' }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         await env.DB.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').bind(username, hash).run();
-        return new Response(JSON.stringify({ success: true, message: 'Регистрация успешна' }), { 
-          status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
+        return new Response(JSON.stringify({ success: true, message: 'Регистрация успешна' }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { 
-          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
+        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
@@ -59,24 +51,16 @@ export default {
         const hash = await hashPassword(password);
         const user = await env.DB.prepare('SELECT id, username FROM users WHERE username = ? AND password_hash = ?').bind(username, hash).first();
         if (user) {
-          return new Response(JSON.stringify({ success: true, username: user.username }), { 
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          });
+          return new Response(JSON.stringify({ success: true, username: user.username }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         } else {
-          return new Response(JSON.stringify({ error: 'Неверный логин или пароль' }), { 
-            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          });
+          return new Response(JSON.stringify({ error: 'Неверный логин или пароль' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { 
-          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
+        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
-    return new Response("Katiki Server is running!", { 
-      status: 200, headers: corsHeaders 
-    });
+    return new Response("Katiki Server is running!", { status: 200, headers: corsHeaders });
   }
 };
 
@@ -98,26 +82,62 @@ export class GameRoom {
 
     server.accept();
     
+    const url = new URL(request.url);
+    const username = url.searchParams.get('username') || 'Гость';
+    
     const playerId = Math.random().toString(36).substring(2, 9);
-    const playerData = { id: playerId, x: 512, y: 384, angle: 0 };
+    // Начальная локация - площадь
+    const playerData = { id: playerId, name: username, x: 512, y: 384, angle: 0, location: 'square' };
     this.sessions.set(server, playerData);
 
+    // Инициализация для нового игрока
     const existingPlayers = Array.from(this.sessions.values()).filter(p => p.id !== playerId);
-    server.send(JSON.stringify({ type: 'init', id: playerId, players: existingPlayers }));
+    server.send(JSON.stringify({ type: 'init', id: playerId, players: existingPlayers, location: playerData.location }));
 
+    // Оповещаем остальных
     this.broadcast({ type: 'player_joined', player: playerData }, server);
 
     server.addEventListener('message', (msg) => {
       try {
         const data = JSON.parse(msg.data);
+        const player = this.sessions.get(server);
+        
+        if (!player) return;
+
         if (data.type === 'move') {
-          const player = this.sessions.get(server);
-          if (player) {
-            player.x = data.x;
-            player.y = data.y;
-            player.angle = data.angle;
-            this.broadcast({ type: 'player_moved', id: playerId, x: player.x, y: player.y, angle: player.angle }, server);
-          }
+          player.x = data.x;
+          player.y = data.y;
+          player.angle = data.angle;
+          player.location = data.location;
+          
+          this.broadcast({ 
+            type: 'player_moved', 
+            id: playerId, 
+            x: player.x, y: player.y, angle: player.angle, location: player.location 
+          }, server);
+        } 
+        else if (data.type === 'change_location') {
+          player.location = data.location;
+          player.x = 512;
+          player.y = 384;
+          
+          this.broadcast({ 
+            type: 'player_moved', 
+            id: playerId, 
+            x: player.x, y: player.y, angle: player.angle, location: player.location 
+          });
+        }
+        else if (data.type === 'chat') {
+          // Рассылаем чат всем в игре
+          const colors = ['#FFD700', '#00BFFF', '#FF69B4', '#32CD32', '#FFA500'];
+          const color = colors[player.name.length % colors.length];
+          
+          this.broadcast({ 
+            type: 'chat', 
+            name: player.name, 
+            text: data.text.substring(0, 100), // защита от спама
+            color: color
+          });
         }
       } catch (e) {
         console.error("Ошибка парсинга сообщения", e);

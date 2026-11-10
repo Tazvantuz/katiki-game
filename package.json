@@ -1,0 +1,10 @@
+{
+  "name": "katiki-game-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Monorepo for Katiki game",
+  "workspaces": [
+    "client",
+    "server"
+  ]
+}

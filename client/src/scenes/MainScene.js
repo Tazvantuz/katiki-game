@@ -65,7 +65,7 @@ export default class MainScene extends Phaser.Scene {
         
         this.time.delayedCall(500, () => {
             this.game.events.emit('updateCurrency', this.userData.fluffies);
-            this.game.events.emit('updateInventory', this.userData.inventory);
+            this.gameEvents.emit('updateInventory', this.userData.inventory);
             this.game.events.emit('initMap', Object.keys(this.locations).map(k => ({id: k, ...this.locations[k]})), this.currentLocation);
             this.buildWorld();
         });
@@ -74,141 +74,294 @@ export default class MainScene extends Phaser.Scene {
     generateTextures() {
         const TW = this.tileWidth, TH = this.tileHeight;
 
-        // --- 1. ДЕТАЛИЗИРОВАННЫЙ КАТИК С АНИМАЦИЕЙ ---
+        // --- 1. КАТИК-КАЧОК (Максимальная детализация) ---
         const drawKatik = (dir, frame) => {
             const key = `katik_${dir}_${frame}`;
-            const canvas = this.textures.createCanvas(key, 64, 64);
+            // Увеличиваем размер холста для детализации
+            const canvas = this.textures.createCanvas(key, 96, 96);
             const ctx = canvas.context;
-            const cx = 32, cy = 32;
+            const cx = 48, cy = 48;
             
-            let offset = 0;
-            if (frame === 1) offset = 4;
-            if (frame === 3) offset = -4;
-            
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath(); ctx.ellipse(cx, cy + 22, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
-            
-            ctx.strokeStyle = '#B8731A';
-            ctx.lineWidth = 1.5;
+            // Смещение для анимации (подпрыгивание)
+            let bob = frame === 1 || frame === 3 ? -2 : 0;
+            // Смещение ног (шаг)
+            let legOffset = 0;
+            if (frame === 1) legOffset = 6;
+            if (frame === 3) legOffset = -6;
+
+            // Цвета
+            const colBase = '#FF8C00'; // Основная шерсть
+            const colDark = '#D2691E'; // Тени мышц
+            const colLight = '#FFA500'; // Блики
+            const colBelly = '#FFE4B5'; // Грудь/пресс (светлая)
+            const colOutline = '#8B4513'; // Обводка
+
+            // Тень под персонажем
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath(); ctx.ellipse(cx, cy + 38, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
+
+            ctx.strokeStyle = colOutline;
+            ctx.lineWidth = 2;
 
             if (dir === 'down') {
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx - 8, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx + 8, cy + 18 - offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- НОГИ ---
+                ctx.fillStyle = colDark;
+                // Левая нога
+                ctx.beginPath(); ctx.ellipse(cx - 12, cy + 26 + (frame===1? -legOffset:0), 8, 14, 0.1, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Правая нога
+                ctx.beginPath(); ctx.ellipse(cx + 12, cy + 26 + (frame===3? -legOffset:0), 8, 14, -0.1, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.ellipse(cx, cy + 16, 8, 16, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- ТОРС (V-образный) ---
+                ctx.fillStyle = colBase;
+                ctx.beginPath();
+                ctx.moveTo(cx - 26, cy - 10); // Левое плечо
+                ctx.lineTo(cx + 26, cy - 10); // Правое плечо
+                ctx.lineTo(cx + 14, cy + 24); // Талия
+                ctx.lineTo(cx - 14, cy + 24); // Талия
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                // Грудь (Пекторальные мышцы)
+                ctx.fillStyle = colBelly;
+                ctx.beginPath(); ctx.ellipse(cx - 10, cy - 2, 10, 8, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 10, cy - 2, 10, 8, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Тень под грудью
+                ctx.fillStyle = colDark;
+                ctx.beginPath(); ctx.ellipse(cx, cy + 4, 18, 4, 0, 0, Math.PI); ctx.fill();
+
+                // Пресс (Кубики)
+                ctx.fillStyle = colBelly;
+                ctx.strokeStyle = colDark; ctx.lineWidth = 1.5;
+                for (let r = 0; r < 3; r++) {
+                    for (let c = -1; c <= 1; c+=2) {
+                        ctx.beginPath(); ctx.ellipse(cx + c*5, cy + 8 + r*6, 4, 3, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                    }
+                }
+
+                // --- РУКИ (Огромные бицепсы) ---
+                ctx.strokeStyle = colOutline; ctx.lineWidth = 2;
+                // Левая рука
+                let armLY = frame === 3 ? -legOffset : 0;
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx - 32, cy + 2 + armLY, 10, 14, 0.4, 0, Math.PI*2); ctx.fill(); ctx.stroke(); // Бицепс
+                ctx.fillStyle = colLight; ctx.beginPath(); ctx.ellipse(cx - 34, cy - 2 + armLY, 4, 8, 0.4, 0, Math.PI*2); ctx.fill(); // Блик
+                ctx.fillStyle = colBase; ctx.beginPath(); ctx.ellipse(cx - 26, cy + 16 + armLY, 6, 10, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke(); // Предплечье
                 
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath(); ctx.ellipse(cx, cy + 10, 14, 12, 0, 0, Math.PI*2); ctx.fill();
+                // Правая рука
+                let armRY = frame === 1 ? -legOffset : 0;
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx + 32, cy + 2 + armRY, 10, 14, -0.4, 0, Math.PI*2); ctx.fill(); ctx.stroke(); // Бицепс
+                ctx.fillStyle = colLight; ctx.beginPath(); ctx.ellipse(cx + 34, cy - 2 + armRY, 4, 8, -0.4, 0, Math.PI*2); ctx.fill(); // Блик
+                ctx.fillStyle = colBase; ctx.beginPath(); ctx.ellipse(cx + 26, cy + 16 + armRY, 6, 10, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke(); // Предплечье
 
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx - 20, cy + 8 - offset, 6, 12, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx + 20, cy + 8 + offset, 6, 12, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.arc(cx, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.moveTo(cx - 16, cy - 24); ctx.lineTo(cx - 4, cy - 36); ctx.lineTo(cx + 2, cy - 20); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(cx + 16, cy - 24); ctx.lineTo(cx + 4, cy - 36); ctx.lineTo(cx - 2, cy - 20); ctx.fill(); ctx.stroke();
-                
+                // --- ГОЛОВА ---
+                let headBob = bob;
+                // Уши
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.moveTo(cx - 16, cy - 24 + headBob); ctx.lineTo(cx - 24, cy - 44 + headBob); ctx.lineTo(cx - 6, cy - 30 + headBob); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + 16, cy - 24 + headBob); ctx.lineTo(cx + 24, cy - 44 + headBob); ctx.lineTo(cx + 6, cy - 30 + headBob); ctx.fill(); ctx.stroke();
+                // Внутреннее ухо
                 ctx.fillStyle = '#FFB6C1';
-                ctx.beginPath(); ctx.moveTo(cx - 12, cy - 24); ctx.lineTo(cx - 6, cy - 31); ctx.lineTo(cx - 2, cy - 22); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(cx + 12, cy - 24); ctx.lineTo(cx + 6, cy - 31); ctx.lineTo(cx + 2, cy - 22); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx - 15, cy - 26 + headBob); ctx.lineTo(cx - 20, cy - 38 + headBob); ctx.lineTo(cx - 9, cy - 28 + headBob); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx + 15, cy - 26 + headBob); ctx.lineTo(cx + 20, cy - 38 + headBob); ctx.lineTo(cx + 9, cy - 28 + headBob); ctx.fill();
 
-                ctx.fillStyle = '#222222';
-                ctx.beginPath(); ctx.arc(cx - 8, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(cx + 8, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
+                // Морда
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx, cy - 20 + headBob, 20, 16, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = colBelly;
+                ctx.beginPath(); ctx.ellipse(cx, cy - 14 + headBob, 12, 8, 0, 0, Math.PI*2); ctx.fill(); // Щеки
+
+                // Глаза (Суровый взгляд)
                 ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath(); ctx.arc(cx - 9, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(cx + 7, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
-                
-                ctx.fillStyle = '#FF8A8A';
-                ctx.beginPath(); ctx.moveTo(cx - 2, cy - 4); ctx.lineTo(cx + 2, cy - 4); ctx.lineTo(cx, cy - 1); ctx.fill();
-                
-                ctx.fillStyle = '#FFB6C1';
-                ctx.beginPath(); ctx.ellipse(cx - 14, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(cx + 14, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(cx - 8, cy - 22 + headBob, 5, 4, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 8, cy - 22 + headBob, 5, 4, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(cx - 7, cy - 22 + headBob, 2, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(cx + 7, cy - 22 + headBob, 2, 0, Math.PI*2); ctx.fill();
+                // Брови (наклонены для суровости)
+                ctx.strokeStyle = colOutline; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(cx - 12, cy - 28 + headBob); ctx.lineTo(cx - 4, cy - 25 + headBob); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + 12, cy - 28 + headBob); ctx.lineTo(cx + 4, cy - 25 + headBob); ctx.stroke();
+
+                // Нос и рот
+                ctx.fillStyle = '#FF69B4';
+                ctx.beginPath(); ctx.moveTo(cx - 3, cy - 14 + headBob); ctx.lineTo(cx + 3, cy - 14 + headBob); ctx.lineTo(cx, cy - 11 + headBob); ctx.fill();
+                ctx.strokeStyle = colOutline; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(cx, cy - 10 + headBob, 5, 0.1, Math.PI - 0.1); ctx.stroke();
             } 
             else if (dir === 'up') {
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx - 8, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx + 8, cy + 18 - offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- НОГИ ---
+                ctx.fillStyle = colDark;
+                ctx.beginPath(); ctx.ellipse(cx - 12, cy + 26 + (frame===3? -legOffset:0), 8, 14, 0.1, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 12, cy + 26 + (frame===1? -legOffset:0), 8, 14, -0.1, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.ellipse(cx, cy + 12, 8, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Хвост
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.moveTo(cx, cy + 20); ctx.quadraticCurveTo(cx + 30, cy + 30 + (frame===1?10:-10), cx + 40, cy + 10); ctx.lineWidth = 8; ctx.strokeStyle = colBase; ctx.stroke(); ctx.strokeStyle = colOutline; ctx.lineWidth = 2; ctx.stroke();
 
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx - 20, cy + 8 - offset, 6, 12, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx + 20, cy + 8 + offset, 6, 12, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- ТОРС (Спина - широчайшие) ---
+                ctx.fillStyle = colBase;
+                ctx.beginPath();
+                ctx.moveTo(cx - 28, cy - 10);
+                ctx.lineTo(cx + 28, cy - 10);
+                ctx.lineTo(cx + 14, cy + 24);
+                ctx.lineTo(cx - 14, cy + 24);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.arc(cx, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Трапеции и лопатки
+                ctx.fillStyle = colDark;
+                ctx.beginPath(); ctx.ellipse(cx, cy - 10, 16, 8, 0, 0, Math.PI); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(cx - 12, cy + 4, 8, 12, 0.2, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(cx + 12, cy + 4, 8, 12, -0.2, 0, Math.PI*2); ctx.fill();
 
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.moveTo(cx - 16, cy - 24); ctx.lineTo(cx - 4, cy - 36); ctx.lineTo(cx + 2, cy - 20); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(cx + 16, cy - 24); ctx.lineTo(cx + 4, cy - 36); ctx.lineTo(cx - 2, cy - 20); ctx.fill(); ctx.stroke();
+                // --- РУКИ СЗАДИ ---
+                let armLY = frame === 3 ? -legOffset : 0;
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx - 32, cy + 2 + armLY, 10, 14, 0.4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx - 26, cy + 16 + armLY, 6, 10, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                
+                let armRY = frame === 1 ? -legOffset : 0;
+                ctx.beginPath(); ctx.ellipse(cx + 32, cy + 2 + armRY, 10, 14, -0.4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 26, cy + 16 + armRY, 6, 10, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                // --- ГОЛОВА СЗАДИ ---
+                let headBob = bob;
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx, cy - 20 + headBob, 20, 16, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Уши
+                ctx.beginPath(); ctx.moveTo(cx - 16, cy - 24 + headBob); ctx.lineTo(cx - 24, cy - 44 + headBob); ctx.lineTo(cx - 6, cy - 30 + headBob); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + 16, cy - 24 + headBob); ctx.lineTo(cx + 24, cy - 44 + headBob); ctx.lineTo(cx + 6, cy - 30 + headBob); ctx.fill(); ctx.stroke();
             }
             else if (dir === 'left') {
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx + 6, cy + 18, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx - 6, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- НОГИ ---
+                ctx.fillStyle = colDark;
+                // Дальняя нога
+                ctx.beginPath(); ctx.ellipse(cx + 2, cy + 26 + legOffset, 8, 14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Ближняя нога
+                ctx.beginPath(); ctx.ellipse(cx - 8, cy + 26 - legOffset, 8, 14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.ellipse(cx + 18, cy + 8, 16, 8, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Хвост
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.moveTo(cx + 10, cy + 15); ctx.quadraticCurveTo(cx + 35, cy + 20, cx + 25, cy - 5); ctx.lineWidth = 8; ctx.strokeStyle = colBase; ctx.stroke(); ctx.strokeStyle = colOutline; ctx.lineWidth = 2; ctx.stroke();
 
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx - 12, cy + 8 + offset, 6, 12, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- ТОРС (Профиль - мощная грудь) ---
+                ctx.fillStyle = colBase;
+                ctx.beginPath();
+                ctx.moveTo(cx - 20, cy - 10); // Спина
+                ctx.lineTo(cx + 20, cy - 15); // Грудь выпирает
+                ctx.lineTo(cx + 14, cy + 24); // Живот
+                ctx.lineTo(cx - 14, cy + 24); // Поясница
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.arc(cx - 6, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Грудная мышца (профиль)
+                ctx.fillStyle = colBelly;
+                ctx.beginPath(); ctx.ellipse(cx + 12, cy - 5, 10, 8, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.moveTo(cx - 10, cy - 24); ctx.lineTo(cx + 4, cy - 36); ctx.lineTo(cx + 8, cy - 20); ctx.fill(); ctx.stroke();
+                // --- РУКИ ---
+                // Дальняя рука (сзади)
+                ctx.fillStyle = colDark;
+                ctx.beginPath(); ctx.ellipse(cx - 10, cy + 5, 8, 12, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx - 6, cy + 18, 5, 8, -0.1, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#222222';
-                ctx.beginPath(); ctx.arc(cx - 14, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath(); ctx.arc(cx - 15, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
+                // Ближняя рука (спереди) - качаем бицепс
+                let armOffset = frame === 3 ? 6 : (frame === 1 ? -6 : 0);
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx + 18, cy + 5 + armOffset, 10, 14, -0.4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = colLight; ctx.beginPath(); ctx.ellipse(cx + 20, cy + 2 + armOffset, 4, 8, -0.4, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = colBase; ctx.beginPath(); ctx.ellipse(cx + 10, cy + 18 + armOffset, 6, 10, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                // --- ГОЛОВА (Профиль) ---
+                let headBob = bob;
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx - 2, cy - 20 + headBob, 20, 16, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
                 
-                ctx.fillStyle = '#FF8A8A';
-                ctx.beginPath(); ctx.arc(cx - 26, cy - 4, 3, 0, Math.PI*2); ctx.fill();
-
+                // Ухо
+                ctx.beginPath(); ctx.moveTo(cx - 12, cy - 24 + headBob); ctx.lineTo(cx - 18, cy - 44 + headBob); ctx.lineTo(cx - 2, cy - 30 + headBob); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = '#FFB6C1';
-                ctx.beginPath(); ctx.ellipse(cx - 18, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx - 11, cy - 26 + headBob); ctx.lineTo(cx - 14, cy - 38 + headBob); ctx.lineTo(cx - 4, cy - 28 + headBob); ctx.fill();
+
+                // Морда (вытянутая вперед)
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx + 12, cy - 16 + headBob, 10, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = colBelly;
+                ctx.beginPath(); ctx.ellipse(cx + 15, cy - 14 + headBob, 6, 5, 0, 0, Math.PI*2); ctx.fill();
+
+                // Глаз
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.ellipse(cx + 2, cy - 22 + headBob, 4, 4, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(cx + 3, cy - 22 + headBob, 2, 0, Math.PI*2); ctx.fill();
+                
+                // Бровь
+                ctx.strokeStyle = colOutline; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(cx - 2, cy - 28 + headBob); ctx.lineTo(cx + 6, cy - 26 + headBob); ctx.stroke();
+
+                // Нос
+                ctx.fillStyle = '#FF69B4';
+                ctx.beginPath(); ctx.moveTo(cx + 20, cy - 16 + headBob); ctx.lineTo(cx + 24, cy - 14 + headBob); ctx.lineTo(cx + 20, cy - 12 + headBob); ctx.fill();
             }
             else if (dir === 'right') {
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx - 6, cy + 18, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx + 6, cy + 18 + offset, 6, 10, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- НОГИ ---
+                ctx.fillStyle = colDark;
+                ctx.beginPath(); ctx.ellipse(cx - 2, cy + 26 + legOffset, 8, 14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 8, cy + 26 - legOffset, 8, 14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.ellipse(cx - 18, cy + 8, 16, 8, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.ellipse(cx, cy + 6, 20, 18, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // Хвост
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.moveTo(cx - 10, cy + 15); ctx.quadraticCurveTo(cx - 35, cy + 20, cx - 25, cy - 5); ctx.lineWidth = 8; ctx.strokeStyle = colBase; ctx.stroke(); ctx.strokeStyle = colOutline; ctx.lineWidth = 2; ctx.stroke();
 
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.ellipse(cx + 12, cy + 8 + offset, 6, 12, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // --- ТОРС ---
+                ctx.fillStyle = colBase;
+                ctx.beginPath();
+                ctx.moveTo(cx + 20, cy - 10); 
+                ctx.lineTo(cx - 20, cy - 15); 
+                ctx.lineTo(cx - 14, cy + 24); 
+                ctx.lineTo(cx + 14, cy + 24); 
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#F5A623';
-                ctx.beginPath(); ctx.arc(cx + 6, cy - 10, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = colBelly;
+                ctx.beginPath(); ctx.ellipse(cx - 12, cy - 5, 10, 8, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#E88A1A';
-                ctx.beginPath(); ctx.moveTo(cx + 10, cy - 24); ctx.lineTo(cx - 4, cy - 36); ctx.lineTo(cx - 8, cy - 20); ctx.fill(); ctx.stroke();
+                // --- РУКИ ---
+                // Дальняя рука
+                ctx.fillStyle = colDark;
+                ctx.beginPath(); ctx.ellipse(cx + 10, cy + 5, 8, 12, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(cx + 6, cy + 18, 5, 8, 0.1, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-                ctx.fillStyle = '#222222';
-                ctx.beginPath(); ctx.arc(cx + 14, cy - 10, 3.5, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath(); ctx.arc(cx + 15, cy - 11, 1.5, 0, Math.PI*2); ctx.fill();
+                // Ближняя рука
+                let armOffset = frame === 1 ? 6 : (frame === 3 ? -6 : 0);
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx - 18, cy + 5 + armOffset, 10, 14, 0.4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = colLight; ctx.beginPath(); ctx.ellipse(cx - 20, cy + 2 + armOffset, 4, 8, 0.4, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = colBase; ctx.beginPath(); ctx.ellipse(cx - 10, cy + 18 + armOffset, 6, 10, -0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+                // --- ГОЛОВА ---
+                let headBob = bob;
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx + 2, cy - 20 + headBob, 20, 16, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
                 
-                ctx.fillStyle = '#FF8A8A';
-                ctx.beginPath(); ctx.arc(cx + 26, cy - 4, 3, 0, Math.PI*2); ctx.fill();
-
+                ctx.beginPath(); ctx.moveTo(cx + 12, cy - 24 + headBob); ctx.lineTo(cx + 18, cy - 44 + headBob); ctx.lineTo(cx + 2, cy - 30 + headBob); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = '#FFB6C1';
-                ctx.beginPath(); ctx.ellipse(cx + 18, cy - 5, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(cx + 11, cy - 26 + headBob); ctx.lineTo(cx + 14, cy - 38 + headBob); ctx.lineTo(cx + 4, cy - 28 + headBob); ctx.fill();
+
+                ctx.fillStyle = colBase;
+                ctx.beginPath(); ctx.ellipse(cx - 12, cy - 16 + headBob, 10, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = colBelly;
+                ctx.beginPath(); ctx.ellipse(cx - 15, cy - 14 + headBob, 6, 5, 0, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.ellipse(cx - 2, cy - 22 + headBob, 4, 4, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(cx - 3, cy - 22 + headBob, 2, 0, Math.PI*2); ctx.fill();
+                
+                ctx.strokeStyle = colOutline; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(cx + 2, cy - 28 + headBob); ctx.lineTo(cx - 6, cy - 26 + headBob); ctx.stroke();
+
+                ctx.fillStyle = '#FF69B4';
+                ctx.beginPath(); ctx.moveTo(cx - 20, cy - 16 + headBob); ctx.lineTo(cx - 24, cy - 14 + headBob); ctx.lineTo(cx - 20, cy - 12 + headBob); ctx.fill();
             }
             
             canvas.refresh();
@@ -545,8 +698,8 @@ export default class MainScene extends Phaser.Scene {
                 if (p) {
                     if (data.location === this.currentLocation) {
                         p.setVisible(true);
-                        p.isMoving = true; // Включаем анимацию
-                        p.moveTimer = 200; // Таймер для остановки анимации
+                        p.isMoving = true; 
+                        p.moveTimer = 200; 
                         this.tweens.add({ targets: p, x: data.x, y: data.y, duration: 100 });
                         this.updatePlayerDirection(p, data.angle);
                     } else {
@@ -573,7 +726,7 @@ export default class MainScene extends Phaser.Scene {
 
     createPlayer(id, x, y, name, angle = 0) {
         const container = this.add.container(x, y);
-        // Создаем спрайт с дефолтной текстурой 0-го кадра
+        // Дефолтная текстура для нового размера спрайта
         const sprite = this.add.sprite(0, 0, 'katik_down_0').setOrigin(0.5, 0.8);
         container.sprite = sprite;
         container.dir = 'down';
@@ -582,7 +735,7 @@ export default class MainScene extends Phaser.Scene {
         container.isMoving = false;
         container.moveTimer = 0;
 
-        const text = this.add.text(0, -45, name, { fontSize: '14px', fontFamily: 'Nunito', fill: '#ffffff', backgroundColor: '#00000088', padding: { x: 6, y: 3 }, borderRadius: 8 }).setOrigin(0.5);
+        const text = this.add.text(0, -55, name, { fontSize: '14px', fontFamily: 'Nunito', fill: '#ffffff', backgroundColor: '#00000088', padding: { x: 6, y: 3 }, borderRadius: 8 }).setOrigin(0.5);
 
         container.add([sprite, text]);
         container.setDepth(y);
@@ -627,7 +780,6 @@ export default class MainScene extends Phaser.Scene {
     }
 
     update(time, delta) {
-        // Обновление анимаций всех игроков
         const updateAnimation = (container) => {
             if (!container.sprite) return;
             

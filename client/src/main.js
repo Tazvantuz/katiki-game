@@ -1,3 +1,4 @@
+// client/src/main.js
 import Phaser from 'phaser';
 import MainScene from './scenes/MainScene.js';
 
@@ -16,7 +17,11 @@ const config = {
         createContainer: true // Включаем поддержку HTML-элементов
     },
     input: {
-        activePointers: 1 // Явно указываем 1 активный указатель (мышь)
+        activePointers: 1
+    },
+    render: {
+        antialias: true, // Сглаживание для красивых векторных текстур
+        roundPixels: true
     }
 };
 

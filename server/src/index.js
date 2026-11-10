@@ -1,4 +1,4 @@
-// Функция для хеширования пароля (SHA-256 с солью)
+// server/src/index.js
 async function hashPassword(password, salt = 'katiki_salt') {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + salt);
@@ -6,62 +6,53 @@ async function hashPassword(password, salt = 'katiki_salt') {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Заголовки для разрешения кросс-доменных запросов (CORS)
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*", // Разрешаем запросы с любых доменов
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type", // Разрешаем заголовок Content-Type
-  "Access-Control-Max-Age": "86400", // Кэшируем preflight-запрос на 24 часа
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
 };
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // 1. Обработка предварительного запроса OPTIONS (CORS preflight)
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // 2. WebSocket подключение
     if (url.pathname === '/ws') {
       const id = env.GAME_ROOM.idFromName("global-room");
       const room = env.GAME_ROOM.get(id);
       return room.fetch(request);
     }
 
-    // 3. API для регистрации
     if (url.pathname === '/api/register' && request.method === 'POST') {
       try {
         const { username, password } = await request.json();
         if (!username || !password) {
           return new Response(JSON.stringify({ error: 'Введите логин и пароль' }), { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         }
         const hash = await hashPassword(password);
         const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
         if (existing) {
           return new Response(JSON.stringify({ error: 'Пользователь уже существует' }), { 
-            status: 409, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         }
         await env.DB.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').bind(username, hash).run();
         return new Response(JSON.stringify({ success: true, message: 'Регистрация успешна' }), { 
-          status: 201, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
       }
     }
 
-    // 4. API для входа
     if (url.pathname === '/api/login' && request.method === 'POST') {
       try {
         const { username, password } = await request.json();
@@ -69,27 +60,22 @@ export default {
         const user = await env.DB.prepare('SELECT id, username FROM users WHERE username = ? AND password_hash = ?').bind(username, hash).first();
         if (user) {
           return new Response(JSON.stringify({ success: true, username: user.username }), { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         } else {
           return new Response(JSON.stringify({ error: 'Неверный логин или пароль' }), { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         }
       } catch (e) {
         return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
       }
     }
 
-    // 5. Базовый ответ для всех остальных запросов
     return new Response("Katiki Server is running!", { 
-      status: 200, 
-      headers: corsHeaders 
+      status: 200, headers: corsHeaders 
     });
   }
 };

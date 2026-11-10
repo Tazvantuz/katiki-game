@@ -42,7 +42,8 @@ export default {
         await env.DB.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').bind(username, hash).run();
         return new Response(JSON.stringify({ success: true, message: 'Регистрация успешна' }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        console.error("Register error:", e.message);
+        return new Response(JSON.stringify({ error: 'Ошибка сервера при регистрации' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
@@ -50,32 +51,32 @@ export default {
       try {
         const { username, password } = await request.json();
         const hash = await hashPassword(password);
+        
         // Запрашиваем данные ВМЕСТЕ с валютой и инвентарем
         const user = await env.DB.prepare('SELECT username, fluffies, inventory FROM users WHERE username = ? AND password_hash = ?').bind(username, hash).first();
         
         if (user) {
+          // Безопасный парсинг инвентаря на случай поврежденных данных
+          let safeInventory = [];
+          try {
+             safeInventory = JSON.parse(user.inventory || '[]');
+          } catch (parseError) {
+             safeInventory = ["🍎", "🍣"]; // Дефолт при ошибке
+          }
+
           return new Response(JSON.stringify({ 
             success: true, 
             username: user.username,
-            fluffies: user.fluffies,
-            inventory: JSON.parse(user.inventory || '[]')
+            fluffies: user.fluffies !== null ? user.fluffies : 100,
+            inventory: safeInventory
           }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         } else {
           return new Response(JSON.stringify({ error: 'Неверный логин или пароль' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-    }
-
-    // API для обновления валюты (например, когда игрок собирает монетки)
-    if (url.pathname === '/api/update_currency' && request.method === 'POST') {
-      try {
-        const { username, amount } = await request.json();
-        await env.DB.prepare('UPDATE users SET fluffies = fluffies + ? WHERE username = ?').bind(amount, username).run();
-        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: 'Ошибка сервера' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        console.error("Login DB error:", e.message);
+        // Если ошибка всё ещё в БД (например, колонки не добавлены)
+        return new Response(JSON.stringify({ error: 'Ошибка базы данных. Проверьте, обновлена ли таблица.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 

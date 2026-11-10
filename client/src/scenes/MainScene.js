@@ -14,12 +14,10 @@ export default class MainScene extends Phaser.Scene {
         this.isLoggedIn = false;
     }
 
-    preload() {
-        // Загружаем HTML для формы
-        this.load.html('authForm', '../src/ui/auth.html');
-    }
+    preload() {}
 
     create() {
+        // Если уже входили ранее, сразу запускаем игру
         if (localStorage.getItem('katiki_username')) {
             this.startGame();
         } else {
@@ -28,7 +26,19 @@ export default class MainScene extends Phaser.Scene {
     }
 
     showAuthForm() {
-        const form = this.add.dom(512, 384).createFromCache('authForm');
+        const formHtml = `
+            <form style="display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; color: white; font-family: Arial; width: 300px;">
+                <h2 style="margin: 0; text-align: center;">Вход в Катики</h2>
+                <input type="text" name="username" placeholder="Логин" style="padding: 10px; border-radius: 5px; border: none;">
+                <input type="password" name="password" placeholder="Пароль" style="padding: 10px; border-radius: 5px; border: none;">
+                <div style="display: flex; gap: 10px;">
+                    <button name="loginBtn" type="button" style="padding: 10px; flex: 1; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Войти</button>
+                    <button name="registerBtn" type="button" style="padding: 10px; flex: 1; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">Регистрация</button>
+                </div>
+            </form>
+        `;
+
+        const form = this.add.dom(512, 384).createFromHTML(formHtml);
         
         form.addListener('click');
         form.on('click', async (event) => {
@@ -79,6 +89,7 @@ export default class MainScene extends Phaser.Scene {
         if (this.isLoggedIn) return;
         this.isLoggedIn = true;
         
+        // Удаляем все DOM-элементы (форму), если они есть
         this.children.list.filter(child => child.type === 'DOMElement').forEach(el => el.destroy());
 
         this.drawIsometricGrid();
@@ -148,7 +159,7 @@ export default class MainScene extends Phaser.Scene {
 
             if (data.type === 'init') {
                 this.myId = data.id;
-                this.createPlayer(this.myId, 512, 384, 0x0000FF, 'Вы');
+                this.createPlayer(this.myId, 512, 384, 0x0000FF, username); // Используем логин как имя
 
                 data.players.forEach(p => {
                     this.createPlayer(p.id, p.x, p.y, 0xFF0000, 'Игрок', p.angle);
